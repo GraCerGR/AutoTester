@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  selenium-hub:
+    image: selenium/hub:4.11.0
+    container_name: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+    environment:
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+
+  selenium-node-chrome:
+    image: selenium/node-chrome:4.11.0
+    container_name: selenium-node-chrome
+    shm_size: 2gb
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_VNC_NO_PASSWORD=true 
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "7900:7900" # VNC доступ (опционально)
+
+  test-node:
+    build:
+      context: ..
+      dockerfile: DockerFiles/Dockerfile.base
+    container_name: test-node
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+
+      # - PYTHONPATH=/app:$PYTHONPATH
+    volumes:
+    #  - ./SolutionTests/Tests-2Laba:/app  # Тесты монтируются в контейнер
+      - ../results:/results
+
+  site:
+    build:
+      context: ..
+      dockerfile: DockerFiles/Dockerfile.site
+    container_name: site
+    ports:
+      - "8080:80"
+    depends_on:
+      - selenium-hub

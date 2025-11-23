@@ -1,0 +1,73 @@
+.container2 {
+  max-width: 720px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: rgb(247, 246, 252);
+  /*border-radius: 5px;*/
+  box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.553);
+}
+
+.death {
+  background-color: rgb(254, 239, 232);
+}
+
+.container2.shifted {
+  margin-left: 20px;
+}
+
+
+.container {
+  transform-origin: top;
+}
+
+.navbar {
+  background-color: rgb(0, 59, 107);
+}
+
+.container3 {
+
+  border: 1px solid rgba(0, 0, 0, 0.103);
+  /*border-radius: 5px;*/
+}
+
+.blue {
+  color: rgb(66, 133, 180);
+}
+
+
+#pagination span {
+  margin-right: 5px;
+  cursor: pointer;
+}
+
+#pagination span.active {
+  font-weight: bold;
+}
+
+#pagination {
+  display: flex;
+  justify-content: center;
+}
+
+.pagination li {
+  display: inline-block;
+  margin: 0 5px;
+}
+
+.background {
+  background-color: grey;
+  display: inline-block;
+  color: white;
+  border-radius: 5px;
+  padding: 4px;
+}
+
+.background2 {
+  background-color: rgb(0, 65, 117);
+  display: inline-block;
+  color: white;
+  border-radius: 5px;
+  padding: 4px;
+  margin-right: 5px;
+}
