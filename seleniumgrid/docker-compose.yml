@@ -66,12 +66,22 @@ services:
     volumes:
       - ../results:/results
 
-  site:
+  site1:
     build:
       context: ..
       dockerfile: DockerFiles/Dockerfile.site
-    container_name: site
+    container_name: site1
     ports:
       - "8080:80"
+    depends_on:
+      - selenium-hub
+
+  site2:
+    build:
+      context: ..
+      dockerfile: DockerFiles/Dockerfile.site
+    container_name: site2
+    ports:
+      - "8081:80"
     depends_on:
       - selenium-hub

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func SendProjectToImage(contextDir, containerName string, site bool) error {
@@ -216,4 +217,27 @@ func runCmd(name string, args ...string) error {
 	}
 
 	return nil
+}
+
+func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) error {
+	// Экранируем символы для sed (вставим обратный слэш перед & | \)
+	escapedURL := strings.NewReplacer(
+		`&`, `\&`,
+		`|`, `\|`,
+		`\`, `\\`,
+	).Replace(newURL)
+
+	// sed: заменить строку вида varName = "...".
+	sedExpr := fmt.Sprintf(`s|^\(%s\s*=\s*\).*|\1"%s"|`, varName, escapedURL)
+
+	cmd := exec.Command(
+		"docker", "exec", containerName,
+		"bash", "-c",
+		fmt.Sprintf(`find /app -name '*.py' -exec sed -i '%s' {} +`, sedExpr),
+	)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }

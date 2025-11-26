@@ -7,7 +7,6 @@ import (
 	myredis "MainApp/redis"
 	selenium_grid "MainApp/seleniumgrid"
 	"MainApp/settings"
-	"MainApp/utilizes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -40,47 +39,64 @@ func main() {
 	for i := range len(settings.TestContainers) {
 		myredis.SetContainerStatus(ctx, redisClient, settings.TestContainers[i], "free")
 	}
+	for i := range len(settings.SiteContainers) {
+		myredis.SetContainerStatus(ctx, redisClient, settings.SiteContainers[i], "free")
+	}
 
-	// Поиск свободного контейнера
-	container, err := myredis.GetFreeContainer(ctx, redisClient)
+	// Поиск свободного тестового контейнера
+	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers)
 	if err != nil {
-		fmt.Println("Нет свободных контейнеров, нужно подождать или повторить позже")
+		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать или повторить позже")
+		return
+	}
+	// Поиск свободного тестового контейнера
+	containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers)
+	if err != nil {
+		fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать или повторить позже")
 		return
 	}
 
-	myredis.SetContainerStatus(ctx, redisClient, container, "busy")
+	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "busy")
+	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "busy")
 
-	flolwName := utilizes.GenerateUniqueFolder()
+	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containerSiteName)
+
+	//flolwName := utilizes.GenerateUniqueFolder()
 
 	//Передаём файлы теста в тестовый контейнер
 	//Запускается при получении из очереди запроса на проверку - получает решение студента
-	if err := createconteinerpackage.SendProjectToImage("SolutionTests/ExampleSite", container, false); err != nil {
+	if err := createconteinerpackage.SendProjectToImage("SolutionTests/ExampleSite", containerTestName, false); err != nil {
 		fmt.Printf("Ошибка передачи проекта студента в контейнер: %v\n", err)
 		return
 	}
 
+	if err := createconteinerpackage.ReplaceTestURLInPythonContainer(containerTestName, "TEST_URL", "http://"+containerSiteName+":80"); err != nil {
+		fmt.Printf("Ошибка замены TEST_URL: %v\n", err)
+	}
+
 	//Отправляет скрипт перенаправления запросов в хаб селениум грида
-	if err := createconteinerpackage.SendSiteCustomize("DockerFiles/sitecustomize.py", container); err != nil {
+	if err := createconteinerpackage.SendSiteCustomize("DockerFiles/sitecustomize.py", containerTestName); err != nil {
 		fmt.Println("Ошибка:", err)
 		return
 	}
 
 	//ExampleSite - запрашиваю из бд или гита
-	// Папка потока - генерируется с уникальным id, чтобы потоки отличались
-	ExecutionSolutionOnSites("Sites/ExampleSite", "results/studentResults/"+flolwName, "results/correctResults/ExampleSite", container)
+	// Папка потока - генерируется с уникальным id, чтобы потоки отличались - теперь имя тестового контейнера
+	ExecutionSolutionOnSites("Sites/ExampleSite", "results/studentResults/"+containerTestName, "results/correctResults/ExampleSite", containerTestName, containerSiteName)
 
 	//Удаляем файлы теста в контейнере
-	if err := createconteinerpackage.RemoveProjectFromContainer(container, false); err != nil {
+	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 		return
 	}
 
-	myredis.SetContainerStatus(ctx, redisClient, container, "free")
+	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
+	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "free")
 
 	fmt.Printf("OK")
 }
 
-func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, container string) (checker.AllTestsInChecker, error) {
+func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, containerTest, conteinerSite string) (checker.AllTestsInChecker, error) {
 	var checkerResult checker.AllTestsInChecker
 
 	entries, err := os.ReadDir(siteFolder)
@@ -116,14 +132,14 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, contain
 	for _, index := range dirs {
 		path := dirMap[index]
 
-		if err := createconteinerpackage.SendProjectToImage(path, "site", true); err != nil {
+		if err := createconteinerpackage.SendProjectToImage(path, conteinerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
 			checkerResult.Comment = msg
 			return checkerResult, err
 		}
 
 		//Запускает тесты в контейнере
-		if err := createconteinerpackage.RunPythonTestsContainer(container, resultsFolder); err != nil {
+		if err := createconteinerpackage.RunPythonTestsContainer(containerTest, resultsFolder); err != nil {
 			msg := fmt.Sprintf("Ошибка выполнения тестов: %v\n", err)
 			checkerResult.Comment = msg
 			return checkerResult, err
@@ -146,7 +162,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, contain
 		checkerResult.AllTests = append(checkerResult.AllTests, result)
 
 		//Удаляем файлы сайта в сайтовом контейнере
-		if err := createconteinerpackage.RemoveProjectFromContainer("site", true); err != nil {
+		if err := createconteinerpackage.RemoveProjectFromContainer(conteinerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
 			checkerResult.Comment = msg
 			return checkerResult, err

@@ -1,7 +1,7 @@
 package redis
 
 import (
-	"MainApp/settings"
+	//"MainApp/settings"
 	"context"
 	"fmt"
 	"time"
@@ -39,8 +39,7 @@ func NewClient(ctx context.Context, cfg Config) (*redis.Client, error) {
 	return db, nil
 }
 
-func GetFreeContainer(ctx context.Context, rdb *redis.Client) (string, error) {
-	containers := settings.TestContainers
+func GetFreeContainer(ctx context.Context, rdb *redis.Client, containers []string) (string, error) {
 	for _, c := range containers {
 		key := fmt.Sprintf("container:%s", c)
 

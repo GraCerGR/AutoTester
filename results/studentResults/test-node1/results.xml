@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="0.974" timestamp="2025-11-26T08:01:21.865104+00:00" hostname="89d62d6beefd"><testcase classname="test_site" name="test_page_has_title" time="0.685" /><testcase classname="test_site" name="test_h1_text_is_correct" time="0.244"><failure message="AssertionError: Ожидался текст 'Пример сайта для тестов', но найден 'Другая надпись'&#10;assert 'Другая надпись' == 'Пример сайта для тестов'&#10;  &#10;  - Пример сайта для тестов&#10;  + Другая надпись">driver = &lt;sitecustomize.PatchedChrome (session="c1ac7a3f0da166c2e517f878c33411c3")&gt;
+
+    def test_h1_text_is_correct(driver):
+        """Проверяет, что заголовок h1 содержит нужный текст."""
+        driver.get(TEST_URL)
+        h1 = driver.find_element(By.TAG_NAME, "h1")
+        expected_text = "Пример сайта для тестов"
+&gt;       assert h1.text == expected_text, f"Ожидался текст '{expected_text}', но найден '{h1.text}'"
+E       AssertionError: Ожидался текст 'Пример сайта для тестов', но найден 'Другая надпись'
+E       assert 'Другая надпись' == 'Пример сайта для тестов'
+E         
+E         - Пример сайта для тестов
+E         + Другая надпись
+
+test_site.py:33: AssertionError</failure></testcase></testsuite></testsuites>

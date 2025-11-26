@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
 # URL твоего тестового сайта (можно заменить на http://localhost:8080, если сайт запущен в контейнере)
-TEST_URL = "http://site:80"#"http://localhost:8080"
+TEST_URL = "http://site3:80"#"http://localhost:8080"
 
 @pytest.fixture(scope="module")
 def driver():
