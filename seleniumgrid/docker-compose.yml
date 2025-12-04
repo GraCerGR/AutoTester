@@ -1,5 +1,29 @@
 version: "3.8"
 
+
+x-site-defaults: &site_defaults
+  image: mysite:latest
+  build:
+    context: ..
+    dockerfile: DockerFiles/Dockerfile.site
+  depends_on:
+    - selenium-hub
+  restart: unless-stopped
+
+x-test-defaults: &test_defaults
+  image: testimage:latest
+  build:
+    context: ..
+    dockerfile: DockerFiles/Dockerfile.base
+  depends_on:
+    - selenium-hub
+  volumes:
+    - ../results:/results
+  environment:
+    - SE_EVENT_BUS_HOST=selenium-hub
+    - SE_EVENT_BUS_PUBLISH_PORT=4442
+    - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+
 services:
   redis:
     image: redis:7
@@ -35,53 +59,52 @@ services:
       - "7900:7900" # VNC доступ (опционально)
 
   test-node1:
-    build:
-      context: ..
-      dockerfile: DockerFiles/Dockerfile.base
+    <<: *test_defaults
     container_name: test-node1
-    depends_on:
-      - selenium-hub
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-
-      # - PYTHONPATH=/app:$PYTHONPATH
-    volumes:
-      - ../results:/results
 
   test-node2:
-    build:
-      context: ..
-      dockerfile: DockerFiles/Dockerfile.base
+    <<: *test_defaults
     container_name: test-node2
-    depends_on:
-      - selenium-hub
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
 
-      # - PYTHONPATH=/app:$PYTHONPATH
-    volumes:
-      - ../results:/results
+  test-node3:
+    <<: *test_defaults
+    container_name: test-node3
+
+  test-node4:
+    <<: *test_defaults
+    container_name: test-node4
+
+  test-node5:
+    <<: *test_defaults
+    container_name: test-node5
+
 
   site1:
-    build:
-      context: ..
-      dockerfile: DockerFiles/Dockerfile.site
+    <<: *site_defaults
     container_name: site1
     ports:
       - "8080:80"
-    depends_on:
-      - selenium-hub
 
   site2:
-    build:
-      context: ..
-      dockerfile: DockerFiles/Dockerfile.site
+    <<: *site_defaults
     container_name: site2
     ports:
       - "8081:80"
-    depends_on:
-      - selenium-hub
+
+  site3:
+    <<: *site_defaults
+    container_name: site3
+    ports:
+      - "8082:80"
+
+  site4:
+    <<: *site_defaults
+    container_name: site4
+    ports:
+      - "8083:80"
+
+  site5:
+    <<: *site_defaults
+    container_name: site5
+    ports:
+      - "8084:80"
