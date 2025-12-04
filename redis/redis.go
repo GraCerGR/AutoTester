@@ -1,12 +1,13 @@
 package redis
 
 import (
-	//"MainApp/settings"
+	"MainApp/settings"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	//"honnef.co/go/tools/config"
 )
 
 type Config struct {
@@ -39,30 +40,49 @@ func NewClient(ctx context.Context, cfg Config) (*redis.Client, error) {
 	return db, nil
 }
 
-func GetFreeContainer(ctx context.Context, rdb *redis.Client, containers []string) (string, error) {
+func GetFreeContainer(ctx context.Context, rdb *redis.Client, containers []settings.Container, stack string) (string, error) {
+
+	lua := `
+		local stack = redis.call('HGET', KEYS[1], 'stack')
+		local status = redis.call('HGET', KEYS[1], 'status')
+		if (ARGV[1] == '' or stack == ARGV[1]) and status == 'free' then
+		redis.call('HSET', KEYS[1], 'status', 'busy')
+		return 1
+		end
+		return 0`
+
 	for _, c := range containers {
-		key := fmt.Sprintf("container:%s", c)
-
-		oldStatus, err := rdb.GetSet(ctx, key, "busy").Result()
-		if err != nil && err != redis.Nil {
-			return "", err
+		key := fmt.Sprintf("container:%s", c.Name)
+		res, err := rdb.Eval(ctx, lua, []string{key}, stack).Result()
+		if err != nil {
+			res, err = rdb.Eval(ctx, lua, []string{key}, stack).Result()
+			if err != nil {
+				return "", err
+			}
 		}
-
-		if oldStatus == "free" || err == redis.Nil {
-			return c, nil
+		if num, ok := res.(int64); ok && num == 1 {
+			return c.Name, nil
 		}
 	}
 
-	return "", fmt.Errorf("нет свободных контейнеров")
+	return "", fmt.Errorf("нет свободных контейнеров для стека%q", stack)
 }
 
 func SetContainerStatus(ctx context.Context, rdb *redis.Client, container, status string) error {
 	key := fmt.Sprintf("container:%s", container)
 	if status == "free" {
-		return rdb.Set(ctx, key, "free", 0).Err()
+		return rdb.HSet(ctx, key, "status", status).Err()
 	} else if status == "busy" {
-		return rdb.Set(ctx, key, "busy", 0).Err()
+		return rdb.HSet(ctx, key, "status", status).Err()
 	} else {
-		return rdb.Set(ctx, key, "busy", 0).Err()
+		return rdb.HSet(ctx, key, "status", "busy").Err()
 	}
+}
+
+func InitOrUpdateContainer(ctx context.Context, rdb *redis.Client, c settings.Container, status string) error {
+	key := fmt.Sprintf("container:%s", c.Name)
+	return rdb.HSet(ctx, key, map[string]interface{}{
+		"stack":  c.Stack,
+		"status": status,
+	}).Err()
 }

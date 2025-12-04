@@ -20,6 +20,8 @@ import (
 
 func main() {
 
+	// ---- Runner ----
+
 	//Запуск компоуза с гридом, тестом и сайтом
 	//Запускается при запуске всего хаба
 	if err := selenium_grid.StartSeleniumGrid("./seleniumgrid"); err != nil {
@@ -35,22 +37,24 @@ func main() {
 		return
 	}
 
-	// Пометка в редисе, что все контейнеры сввободны
-	for i := range len(settings.TestContainers) {
-		myredis.SetContainerStatus(ctx, redisClient, settings.TestContainers[i], "free")
+	// Пометка в редисе, что все контейнеры свободны
+	for _, i := range settings.TestContainers {
+		myredis.InitOrUpdateContainer(ctx, redisClient, i, "free")
 	}
-	for i := range len(settings.SiteContainers) {
-		myredis.SetContainerStatus(ctx, redisClient, settings.SiteContainers[i], "free")
+	for _, i := range settings.SiteContainers {
+		myredis.InitOrUpdateContainer(ctx, redisClient, i, "free")
 	}
 
+	// ---- Executor ----
+
 	// Поиск свободного тестового контейнера
-	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers)
+	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, "python")
 	if err != nil {
 		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать или повторить позже")
 		return
 	}
-	// Поиск свободного тестового контейнера
-	containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers)
+	// Поиск свободного сайтового контейнера
+	containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers, "")
 	if err != nil {
 		fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать или повторить позже")
 		return
@@ -145,6 +149,8 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, contain
 			return checkerResult, err
 		}
 
+		// ---- Checker ----
+
 		//Вывод реузльтатов теста в json
 		if err := checker.Parsing(resultsFolder+"/results.xml", index); err != nil {
 			msg := fmt.Sprintf("Ошибка вывода результатов в json: %v\n", err)
@@ -199,5 +205,6 @@ func redisClientStart() (*redis.Client, error) {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Connected to Redis:", cfg.Addr)
 	return db, nil
 }
