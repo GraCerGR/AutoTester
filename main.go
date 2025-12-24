@@ -1,6 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"MainApp/classes"
+	"MainApp/settings"
+	"context"
+	"fmt"
+)
 
 func main() {
 	ctx, redisClient, err := Runner()
@@ -10,8 +15,20 @@ func main() {
 	}
 
 	//Прослушивание очереди
+	go func() {
+		err := StartAttemptInsertListener(ctx, settings.PostgresLink, 
+			func(ctx context.Context, a classes.Attempt) error {
+			//Скачивание решения и вариантов сайта
+			//Выполнение работы
+			go Executor(ctx, redisClient, a)
+			return nil
+		},
+	)
 
-	//Скачивание решения и вариантов сайта
+		if err != nil && ctx.Err() == nil {
+			fmt.Errorf("watcher stopped with error: %v", err)
+		}
+	}()
 
-	Executor(ctx, redisClient)
+	<-ctx.Done()
 }

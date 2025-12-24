@@ -6,17 +6,18 @@ import (
 	"github.com/google/uuid"
 )
 
-var Attempt struct {
-	id                   uuid.UUID
-	created_at           time.Time
-	git_student_url      string
-	git_site_url         string
-	variable_with_url    string
-	task_id              uuid.UUID
-	task_name            string
-	programming_language programmingLanguage
-	testing_verdict      TestVerdict
-	postmoderation       TestVerdict
+type Attempt struct {
+	Id                        uuid.UUID
+	CreatedAt                time.Time
+	GitStudentURL           string
+	GitSiteURL              string
+	VariableWithURL         string
+	TaskId                   uuid.UUID
+	TaskName                 string
+	ProgrammingLanguageId   uuid.UUID
+	ProgrammingLanguageName string
+	TestingVerdict           TestVerdict
+	Postmoderation            TestVerdict
 }
 
 type programmingLanguage struct {

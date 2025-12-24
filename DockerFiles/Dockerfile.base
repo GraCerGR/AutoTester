@@ -53,13 +53,12 @@ RUN apt-get update && apt-get install -y python3 python3-pip && \
     #pip3 install --no-cache-dir selenium pytest
     pip install -r /tmp/requirements.txt
 
-# Создаём рабочую директорию для тестов
+
 WORKDIR /app
 
-# Копируем тесты внутрь контейнера (опционально)
-# COPY ./tests /app/tests
 
 USER seluser
 
 # Команда по умолчанию — ничего не делать (контейнер просто узел)
+# Вместо CMD ["sleep", "infinity"] - команда для запуска проекта студента (pytest)
 CMD ["sleep", "infinity"]

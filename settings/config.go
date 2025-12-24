@@ -10,6 +10,8 @@ var RedisMaxRetries = 5
 var RedisTimeout = 5 * time.Second
 var DialTimeout = 30 * time.Second
 
+var PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
+
 // Контейнеры
 
 type Container struct {

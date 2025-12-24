@@ -17,19 +17,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Executor(ctx context.Context, redisClient *redis.Client) {
+func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.Attempt) {
 	// ---- Executor ----
 
 	// Поиск свободного тестового контейнера
 	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, "python")
 	if err != nil {
-		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать или повторить позже")
+		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать")
+		//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
 		return
 	}
 	// Поиск свободного сайтового контейнера
 	containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers, "")
 	if err != nil {
-		fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать или повторить позже")
+		fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать")
+		//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
 		return
 	}
 
