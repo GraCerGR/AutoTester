@@ -3,6 +3,7 @@ package main
 import (
 	"MainApp/checker"
 	"MainApp/classes"
+	"MainApp/commandongit"
 	"MainApp/commandonhost"
 	"MainApp/createconteinerpackage"
 	myredis "MainApp/redis"
@@ -45,10 +46,12 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 
 	//flolwName := utilizes.GenerateUniqueFolder()
 
-	if err := createconteinerpackage.DownloadFromGit(attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+	//Загрузка решения из гита
+	if err := commandongit.DownloadFromGit(attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
 		fmt.Printf("Ошибка загрузки решения с гита: %v\n", err)
 		return
 	}
+
 	//Передаём файлы теста в тестовый контейнер
 	//Запускается при получении из очереди запроса на проверку - получает решение студента
 	if err := createconteinerpackage.SendProjectToImage("Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
@@ -66,13 +69,19 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 		return
 	}
 
-	//ExampleSite - запрашиваю из гита
-	if err := createconteinerpackage.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
+	//Загрузка сайта из гита
+	repoName, err := commandongit.GetRepoNameFromURL(attempt.GitSiteURL)
+	if err != nil {
+		fmt.Printf("Ошибка получения имени репозитория: %v\n", err)
+		return
+	}
+	if err := commandongit.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+repoName, ""); err != nil {
 		fmt.Printf("Ошибка загрузки сайта с гита: %v\n", err)
 		return
 	}
-	// Папка потока - генерируется с уникальным id, чтобы потоки отличались - теперь имя тестового контейнера
-	if _, err := ExecutionSolutionOnSites("Sites/Gits/"+containerTestName+"/Sites", "Sites/Gits/"+containerTestName+"/StudentResults", "Sites/Gits/"+containerTestName+"/Results", containerTestName, containerSiteName); err != nil {
+
+	// Папка потока - генерируется с именем тестового контейнера
+	if _, err := ExecutionSolutionOnSites("Sites/Gits/"+repoName+"/Sites", "Sites/Gits/"+repoName+"/StudentResults", "Sites/Gits/"+repoName+"/Results", containerTestName, containerSiteName); err != nil {
 		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
 		return
 	}
@@ -84,10 +93,10 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	}
 
 	//Удаляем файлы сайта и решения с хоста
-	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+	/*if err := commandonhost.ClearHostFolder("Sites/Gits/" + repoName); err != nil {
 		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return
-	}
+	}*/
 	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
 		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return

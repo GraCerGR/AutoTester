@@ -1,4 +1,4 @@
-package createconteinerpackage
+package commandongit
 
 import (
 	"archive/zip"
@@ -138,4 +138,31 @@ func buildZipURL(repo, ref string) (string, error) {
 	}
 
 	return "", fmt.Errorf("unsupported git provider")
+}
+
+func GetRepoNameFromURL(repoURL string) (string, error) {
+	if repoURL == "" {
+		return "", fmt.Errorf("empty repo url")
+	}
+
+	// Убираем query и якоря
+	if i := strings.IndexAny(repoURL, "?#"); i != -1 {
+		repoURL = repoURL[:i]
+	}
+
+	// Убираем trailing slash
+	repoURL = strings.TrimRight(repoURL, "/")
+
+	// Берём последний сегмент
+	parts := strings.Split(repoURL, "/")
+	name := parts[len(parts)-1]
+
+	// Убираем .git
+	name = strings.TrimSuffix(name, ".git")
+
+	if name == "" {
+		return "", fmt.Errorf("invalid repo url")
+	}
+
+	return name, nil
 }
