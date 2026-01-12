@@ -45,15 +45,19 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 
 	//flolwName := utilizes.GenerateUniqueFolder()
 
+	if err := createconteinerpackage.DownloadFromGit(attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+		fmt.Printf("Ошибка загрузки решения с гита: %v\n", err)
+		return
+	}
 	//Передаём файлы теста в тестовый контейнер
 	//Запускается при получении из очереди запроса на проверку - получает решение студента
-	if err := createconteinerpackage.SendProjectToImage("SolutionTests/ExampleSite", containerTestName, false); err != nil {
-		fmt.Printf("Ошибка передачи проекта студента в контейнер: %v\n", err)
+	if err := createconteinerpackage.SendProjectToImage("Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
+		fmt.Printf("Ошибка передачи проекта в контейнер: %v\n", err)
 		return
 	}
 
 	if err := createconteinerpackage.ReplaceTestURLInPythonContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
-		fmt.Printf("Ошибка замены TEST_URL: %v\n", err)
+		fmt.Printf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
 	}
 
 	//Отправляет скрипт перенаправления запросов в хаб селениум грида
@@ -64,7 +68,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 
 	//ExampleSite - запрашиваю из гита
 	if err := createconteinerpackage.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
-		fmt.Printf("Ошибка загрузки сайта: %v\n", err)
+		fmt.Printf("Ошибка загрузки сайта с гита: %v\n", err)
 		return
 	}
 	// Папка потока - генерируется с уникальным id, чтобы потоки отличались - теперь имя тестового контейнера
@@ -79,8 +83,12 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 		return
 	}
 
-	//Удаляем файлы сайта с хоста
+	//Удаляем файлы сайта и решения с хоста
 	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
+		return
+	}
+	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
 		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return
 	}
