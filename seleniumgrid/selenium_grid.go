@@ -11,6 +11,7 @@ import (
 
 const (
 	hubStatusURL        = "http://localhost:4444/status"
+	hubURL              = "http://localhost:4444"
 	hubWaitTimeout      = 40 * time.Second
 	hubWaitPollInterval = 1 * time.Second
 )
@@ -34,7 +35,7 @@ func StartSeleniumGrid(composeDir string) error {
 		return fmt.Errorf("hub not ready: %w", err)
 	}
 
-	fmt.Println("Selenium Grid запущен и готов по адресу:", hubStatusURL)
+	fmt.Println("Selenium Grid запущен и готов по адресу:", hubURL)
 	return nil
 }
 

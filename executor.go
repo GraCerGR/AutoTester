@@ -21,7 +21,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	// ---- Executor ----
 
 	// Поиск свободного тестового контейнера
-	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, "python")
+	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, attempt.ProgrammingLanguageName)
 	if err != nil {
 		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать")
 		//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
@@ -49,7 +49,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 		return
 	}
 
-	if err := createconteinerpackage.ReplaceTestURLInPythonContainer(containerTestName, "TEST_URL", "http://"+containerSiteName+":80"); err != nil {
+	if err := createconteinerpackage.ReplaceTestURLInPythonContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
 		fmt.Printf("Ошибка замены TEST_URL: %v\n", err)
 	}
 
