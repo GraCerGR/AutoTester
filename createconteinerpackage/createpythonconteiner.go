@@ -86,7 +86,7 @@ func RunPythonTestsContainer(image, flowName string) error {
 		"-e", "PYTHONPATH=/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
 		image,
-		"pytest", "-q", "-v", "-s", "--junitxml=/" + flowName + "/results.xml",
+		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
 	}
 
 	fmt.Printf(">>> Запуск команды: docker %v\n", args)
@@ -94,9 +94,17 @@ func RunPythonTestsContainer(image, flowName string) error {
 		fmt.Errorf("ошибка выполнения pytest в контейнере "+image+" : %w", err)
 	}
 
-	fmt.Printf("%s", "Результаты тестов сохранены в: /"+flowName+"/results.xml \n" /*filepath.Join(absResultsPath, "results.xml")*/)
+	//fmt.Printf("%s", "Результаты тестов сохранены в: /"+flowName+"/results.xml \n" /*filepath.Join(absResultsPath, "results.xml")*/)
 
 	return nil
+}
+
+func CopyResultsFromContainer(container, hostPath string) error {
+	os.MkdirAll(hostPath, 0755)
+	return runCmd("docker", "cp",
+		container+":/app/results/results.xml",
+		filepath.Join(hostPath, "results.xml"),
+	)
 }
 
 // Не нужно

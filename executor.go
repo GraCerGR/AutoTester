@@ -3,9 +3,12 @@ package main
 import (
 	"MainApp/checker"
 	"MainApp/classes"
+	"MainApp/commandonhost"
 	"MainApp/createconteinerpackage"
 	myredis "MainApp/redis"
 	"MainApp/settings"
+
+	//"MainApp/utilizes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -59,13 +62,26 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 		return
 	}
 
-	//ExampleSite - запрашиваю из бд или гита
+	//ExampleSite - запрашиваю из гита
+	if err := createconteinerpackage.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
+		fmt.Printf("Ошибка загрузки сайта: %v\n", err)
+		return
+	}
 	// Папка потока - генерируется с уникальным id, чтобы потоки отличались - теперь имя тестового контейнера
-	ExecutionSolutionOnSites("Sites/ExampleSite", "results/studentResults/"+containerTestName, "results/correctResults/ExampleSite", containerTestName, containerSiteName)
+	if _, err := ExecutionSolutionOnSites("Sites/Gits/"+containerTestName+"/Sites", "Sites/Gits/"+containerTestName+"/StudentResults", "Sites/Gits/"+containerTestName+"/Results", containerTestName, containerSiteName); err != nil {
+		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
+		return
+	}
 
 	//Удаляем файлы теста в контейнере
 	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
+		return
+	}
+
+	//Удаляем файлы сайта с хоста
+	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка отчистки файлов с гита: %v\n", err)
 		return
 	}
 
@@ -75,7 +91,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	fmt.Printf("OK")
 }
 
-func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, containerTest, conteinerSite string) (checker.AllTestsInChecker, error) {
+func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, containerTest, conteinerSite string) (checker.AllTestsInChecker, error) {
 	var checkerResult checker.AllTestsInChecker
 
 	entries, err := os.ReadDir(siteFolder)
@@ -124,6 +140,13 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, contain
 			return checkerResult, err
 		}
 
+		//Загрузка результатов с контейнера
+		if err := createconteinerpackage.CopyResultsFromContainer(containerTest, resultsFolder); err != nil {
+			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
+			checkerResult.Comment = msg
+			return checkerResult, err
+		}
+
 		// ---- Checker ----
 
 		//Вывод реузльтатов теста в json
@@ -133,7 +156,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, standartFolder, contain
 			return checkerResult, err
 		}
 
-		result, err := checker.Checker(index, resultsFolder, standartFolder)
+		result, err := checker.Checker(index, resultsFolder, correctResultsFolder)
 		if err != nil {
 			msg := fmt.Sprintf("Ошибка сравнения:", err)
 			checkerResult.Comment = msg
