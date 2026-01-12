@@ -81,7 +81,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 
 	//Удаляем файлы сайта с хоста
 	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
-		fmt.Printf("Ошибка отчистки файлов с гита: %v\n", err)
+		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return
 	}
 

@@ -36,6 +36,6 @@ func ClearHostFolder(path string) error {
 			return err
 		}
 	}
-
+	fmt.Println("Файлы успешно удалены из папки", path)
 	return nil
 }
