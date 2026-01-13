@@ -7,7 +7,6 @@ import (
 	"MainApp/commandonhost"
 	"MainApp/createconteinerpackage"
 	myredis "MainApp/redis"
-	"MainApp/settings"
 
 	//"MainApp/utilizes"
 	"context"
@@ -21,26 +20,23 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.Attempt) {
+func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName, containerSiteName string) {
 	// ---- Executor ----
 
 	// Поиск свободного тестового контейнера
-	containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, attempt.ProgrammingLanguageName)
-	if err != nil {
-		fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать")
-		//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
-		return
-	}
-	// Поиск свободного сайтового контейнера
-	containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers, "")
-	if err != nil {
-		fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать")
-		//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
-		return
-	}
-
-	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "busy")
-	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "busy")
+	// containerTestName, err := myredis.GetFreeContainer(ctx, redisClient, settings.TestContainers, attempt.ProgrammingLanguageName)
+	// if err != nil {
+	// 	fmt.Println("Нет свободных контейнеров для запуска проекта, нужно подождать")
+	// 	//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
+	// 	return
+	// }
+	// // Поиск свободного сайтового контейнера
+	// containerSiteName, err := myredis.GetFreeContainer(ctx, redisClient, settings.SiteContainers, "")
+	// if err != nil {
+	// 	fmt.Println("Нет свободных контейнеров для запуска сайта, нужно подождать")
+	// 	//ЖДАТЬ КОГДА ОСВОБОДИТСЯ, НЕ РЕТУРН
+	// 	return
+	// }
 
 	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containerSiteName)
 
@@ -75,44 +71,23 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	}
 
 	//Загрузка сайта из гита
-	repoName, err := commandongit.GetRepoNameFromURL(attempt.GitSiteURL)
-	if err != nil {
-		fmt.Printf("Ошибка получения имени репозитория: %v\n", err)
-		return
-	}
-	if err := commandongit.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+repoName, ""); err != nil {
+	if err := commandongit.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
 		fmt.Printf("Ошибка загрузки сайта с гита: %v\n", err)
 		return
 	}
 
 	// Папка потока - генерируется с именем тестового контейнера
-	if _, err := ExecutionSolutionOnSites("Sites/Gits/"+repoName+"/Sites", "Sites/Gits/"+repoName+"/StudentResults", "Sites/Gits/"+repoName+"/Results", containerTestName, containerSiteName); err != nil {
+	if _, err := ExecutionSolutionOnSites("Sites/Gits/"+containerTestName+"/Sites", "Sites/Gits/"+containerTestName+"/StudentResults", "Sites/Gits/"+containerTestName+"/Results", containerTestName, containerSiteName); err != nil {
 		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
 		return
 	}
 
-	// ---- Отчистка ----
-
-	//Удаляем файлы теста в контейнере
-	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
-		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
-		return
-	}
-	//Удаляем файлы сайта и решения с хоста
-	if err := commandonhost.ClearHostFolder("Sites/Gits/" + repoName); err != nil {
-		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
-		return
-	}
-	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
-		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
-		return
-	}
-	createconteinerpackage.RemoveTestContainer(containerTestName)
+	ClearAllContainers(containerTestName, containerSiteName)
 
 	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
 	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "free")
-
 	fmt.Printf("OK")
+
 }
 
 func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, containerTest, conteinerSite string) (checker.AllTestsInChecker, error) {
@@ -210,4 +185,28 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 	fmt.Println(string(b))
 
 	return checkerResult, nil
+}
+
+// ---- Отчистка ----
+func ClearAllContainers(containerTestName, containerSiteName string) {
+
+	//Удаляем файлы теста в контейнере
+	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
+		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
+	}
+
+	//Удаляем файлы сайта в контейнере
+	if err := createconteinerpackage.RemoveProjectFromContainer(containerSiteName, true); err != nil {
+		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
+	}
+
+	//Удаляем файлы сайта и решения с хоста
+	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
+	}
+	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
+	}
+
+	createconteinerpackage.RemoveTestContainer(containerTestName)
 }

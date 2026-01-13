@@ -19,6 +19,8 @@ type Container struct {
 	Stack string
 }
 
+var Stacks = []string{"python", "java", "None"} // все стеки
+
 var TestContainers = []Container{
 	{"test-node1", "python"},
 	{"test-node2", "python"},

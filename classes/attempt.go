@@ -7,17 +7,17 @@ import (
 )
 
 type Attempt struct {
-	Id                        uuid.UUID
-	CreatedAt                time.Time
+	Id                      uuid.UUID
+	CreatedAt               time.Time
 	GitStudentURL           string
+	GitStudentBranch        string
 	GitSiteURL              string
+	GitSiteBranch           string
 	VariableWithURL         string
-	TaskId                   uuid.UUID
-	TaskName                 string
-	ProgrammingLanguageId   uuid.UUID
+	TaskId                  uuid.UUID
+	TaskName                string
 	ProgrammingLanguageName string
-	TestingVerdict           TestVerdict
-	Postmoderation            TestVerdict
+	TestingVerdict          TestVerdict
 }
 
 type programmingLanguage struct {

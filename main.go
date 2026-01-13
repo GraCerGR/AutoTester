@@ -2,6 +2,7 @@ package main
 
 import (
 	"MainApp/classes"
+	"MainApp/redis"
 	"MainApp/settings"
 	"context"
 	"fmt"
@@ -14,12 +15,13 @@ func main() {
 		return
 	}
 
-	//Прослушивание очереди
+	//Прослушивание очереди (пока прослушивание БД)
 	go func() {
 		err := StartAttemptInsertListener(ctx, settings.PostgresLink, 
 			func(ctx context.Context, a classes.Attempt) error {
-			go Executor(ctx, redisClient, a)
-			return nil
+			//go Executor(ctx, redisClient, a)
+			//return nil
+			return redis.EnqueueAttempt(ctx, redisClient, a)
 		},
 	)
 

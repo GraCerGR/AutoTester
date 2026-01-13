@@ -36,6 +36,9 @@ func Runner() (context.Context, *redis.Client, error) {
 		myredis.InitOrUpdateContainer(ctx, redisClient, i, "free")
 	}
 
+	//Запуск worker очереди
+	StartQueueWorker(ctx, redisClient)
+
 	return ctx, redisClient, nil
 }
 

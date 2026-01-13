@@ -1,8 +1,10 @@
 package redis
 
 import (
+	"MainApp/classes"
 	"MainApp/settings"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -79,10 +81,24 @@ func SetContainerStatus(ctx context.Context, rdb *redis.Client, container, statu
 	}
 }
 
+// Очередь контейнеров и их статусов
 func InitOrUpdateContainer(ctx context.Context, rdb *redis.Client, c settings.Container, status string) error {
 	key := fmt.Sprintf("container:%s", c.Name)
 	return rdb.HSet(ctx, key, map[string]interface{}{
 		"stack":  c.Stack,
 		"status": status,
 	}).Err()
+}
+
+// Очередь попыток на проверку
+func EnqueueAttempt(ctx context.Context, rdb *redis.Client, a classes.Attempt) error {
+	stack := a.ProgrammingLanguageName
+	key := fmt.Sprintf("queue:%s", stack)
+
+	data, err := json.Marshal(a)
+	if err != nil {
+		return fmt.Errorf("marshal attempt: %w", err)
+	}
+
+	return rdb.RPush(ctx, key, data).Err()
 }

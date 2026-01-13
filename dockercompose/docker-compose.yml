@@ -97,7 +97,6 @@ services:
   #   labels:
   #     - "stack=None"
 
-
   site1:
     <<: *site_defaults
     container_name: site1

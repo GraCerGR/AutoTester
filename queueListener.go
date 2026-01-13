@@ -77,10 +77,8 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 			variable_with_url,
 			task_id,
 			task_name,
-			programming_language_id,
 			programming_language_name,
-			testing_verdict,
-			postmoderation
+			testing_verdict
 		FROM attempt
 		WHERE id = $1
 	`, id)
@@ -93,10 +91,8 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 		&a.VariableWithURL,
 		&a.TaskId,
 		&a.TaskName,
-		&a.ProgrammingLanguageId,
 		&a.ProgrammingLanguageName,
 		&a.TestingVerdict,
-		&a.Postmoderation,
 	)
 	return a, err
 }
