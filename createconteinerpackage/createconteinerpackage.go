@@ -201,3 +201,17 @@ func dockerRun(imageTag, name string, hostPort int) error {
 	time.Sleep(500 * time.Millisecond)
 	return nil
 }
+
+func RunTestContainer(containerName string) error {
+	return runCmd("docker", "run", "-d",
+		"--name", containerName,
+		"--network", "tests-net",
+		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
+		"testimage:latest",
+		"sleep", "infinity",
+	)
+}
+
+func RemoveTestContainer(containerName string) error {
+	return runCmd("docker", "rm", "-f", containerName)
+}

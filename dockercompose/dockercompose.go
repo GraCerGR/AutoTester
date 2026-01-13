@@ -1,4 +1,4 @@
-package selenium_grid
+package dockercompose
 
 import (
 	"fmt"
@@ -16,13 +16,13 @@ const (
 	hubWaitPollInterval = 1 * time.Second
 )
 
-func StartSeleniumGrid(composeDir string) error {
+func StartCompose(composeDir string) error {
 	absDir, err := filepath.Abs(composeDir)
 	if err != nil {
 		return fmt.Errorf("не удалось получить абсолютный путь: %w", err)
 	}
 
-	fmt.Println("=== Запуск Selenium Grid через docker compose ===")
+	fmt.Println("=== Запуск контейнеров через docker compose ===")
 
 	if err := runCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d"); err != nil {
 		return fmt.Errorf("docker compose up failed: %w", err)
@@ -39,7 +39,7 @@ func StartSeleniumGrid(composeDir string) error {
 	return nil
 }
 
-func StopSeleniumGrid(composeDir string) error {
+func StopCompose(composeDir string) error {
 	absDir, err := filepath.Abs(composeDir)
 	if err != nil {
 		return fmt.Errorf("не удалось получить абсолютный путь: %w", err)

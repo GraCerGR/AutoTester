@@ -18,8 +18,6 @@ func main() {
 	go func() {
 		err := StartAttemptInsertListener(ctx, settings.PostgresLink, 
 			func(ctx context.Context, a classes.Attempt) error {
-			//Скачивание решения и вариантов сайта
-			//Выполнение работы
 			go Executor(ctx, redisClient, a)
 			return nil
 		},

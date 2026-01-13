@@ -53,6 +53,11 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	}
 
 	//Передаём файлы теста в тестовый контейнер
+	if err := createconteinerpackage.RunTestContainer(containerTestName); err != nil {
+		fmt.Println("Не удалось создать test container:", err)
+		return
+	}
+
 	//Запускается при получении из очереди запроса на проверку - получает решение студента
 	if err := createconteinerpackage.SendProjectToImage("Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
 		fmt.Printf("Ошибка передачи проекта в контейнер: %v\n", err)
@@ -86,21 +91,23 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 		return
 	}
 
+	// ---- Отчистка ----
+
 	//Удаляем файлы теста в контейнере
 	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 		return
 	}
-
 	//Удаляем файлы сайта и решения с хоста
-	/*if err := commandonhost.ClearHostFolder("Sites/Gits/" + repoName); err != nil {
+	if err := commandonhost.ClearHostFolder("Sites/Gits/" + repoName); err != nil {
 		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return
-	}*/
+	}
 	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
 		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
 		return
 	}
+	createconteinerpackage.RemoveTestContainer(containerTestName)
 
 	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
 	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "free")

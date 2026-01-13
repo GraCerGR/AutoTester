@@ -1,5 +1,8 @@
 version: "3.8"
 
+networks:
+  tests-net:
+    name: tests-net
 
 x-site-defaults: &site_defaults
   image: mysite:latest
@@ -9,20 +12,22 @@ x-site-defaults: &site_defaults
   depends_on:
     - selenium-hub
   restart: unless-stopped
+  networks:
+    - tests-net
 
 x-test-defaults: &test_defaults
   image: testimage:latest
   build:
     context: ..
     dockerfile: DockerFiles/Dockerfile.base
-  depends_on:
-    - selenium-hub
-  volumes:
-    - ../results:/results
-  environment:
-    - SE_EVENT_BUS_HOST=selenium-hub
-    - SE_EVENT_BUS_PUBLISH_PORT=4442
-    - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+#   depends_on:
+#     - selenium-hub
+#   volumes:
+#     - ../results:/results
+#   environment:
+#     - SE_EVENT_BUS_HOST=selenium-hub
+#     - SE_EVENT_BUS_PUBLISH_PORT=4442
+#     - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
 
 services:
   redis:
@@ -34,6 +39,8 @@ services:
     restart: unless-stopped
 
   selenium-hub:
+    networks:
+      - tests-net
     image: selenium/hub:4.11.0
     container_name: selenium-hub
     ports:
@@ -45,6 +52,8 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
 
   selenium-node-chrome:
+    networks:
+      - tests-net
     image: selenium/node-chrome:4.11.0
     container_name: selenium-node-chrome
     shm_size: 2gb
@@ -58,35 +67,35 @@ services:
     #ports:
     #  - "7900:7900" # VNC доступ (опционально)
 
-  test-node1:
-    <<: *test_defaults
-    container_name: test-node1
-    labels:
-      - "stack=Python"
+  # test-node1:
+  #   <<: *test_defaults
+  #   container_name: test-node1
+  #   labels:
+  #     - "stack=Python"
 
-  test-node2:
-    <<: *test_defaults
-    container_name: test-node2
-    labels:
-      - "stack=Python"
+  # test-node2:
+  #   <<: *test_defaults
+  #   container_name: test-node2
+  #   labels:
+  #     - "stack=Python"
 
-  test-node3:
-    <<: *test_defaults
-    container_name: test-node3
-    labels:
-      - "stack=Java"
+  # test-node3:
+  #   <<: *test_defaults
+  #   container_name: test-node3
+  #   labels:
+  #     - "stack=Java"
 
-  test-node4:
-    <<: *test_defaults
-    container_name: test-node4
-    labels:
-      - "stack=Java"
+  # test-node4:
+  #   <<: *test_defaults
+  #   container_name: test-node4
+  #   labels:
+  #     - "stack=Java"
 
-  test-node5:
-    <<: *test_defaults
-    container_name: test-node5
-    labels:
-      - "stack=None"
+  # test-node5:
+  #   <<: *test_defaults
+  #   container_name: test-node5
+  #   labels:
+  #     - "stack=None"
 
 
   site1:

@@ -2,7 +2,7 @@ package main
 
 import (
 	myredis "MainApp/redis"
-	selenium_grid "MainApp/seleniumgrid"
+	dockercompose "MainApp/dockercompose"
 	"MainApp/settings"
 	"context"
 	"fmt"
@@ -15,7 +15,7 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	//Запуск компоуза с гридом, тестом и сайтом
 	//Запускается при запуске всего хаба
-	if err := selenium_grid.StartSeleniumGrid("./seleniumgrid"); err != nil {
+	if err := dockercompose.StartCompose("./dockercompose"); err != nil {
 		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 		return nil, nil, err
 	}
