@@ -1,11 +1,13 @@
 package main
 
 import (
-	myredis "MainApp/redis"
+	createconteinerpackage "MainApp/createconteinerpackage"
 	dockercompose "MainApp/dockercompose"
+	myredis "MainApp/redis"
 	"MainApp/settings"
 	"context"
 	"fmt"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -18,6 +20,14 @@ func Runner() (context.Context, *redis.Client, error) {
 	if err := dockercompose.StartCompose("./dockercompose"); err != nil {
 		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 		return nil, nil, err
+	}
+
+	//Сборка образов для тестовых контейнеров
+	for _, stack := range settings.Stacks {
+		if err := createconteinerpackage.DockerBuild(settings.ChooseImageTag(stack), "DockerFiles/"+settings.ChooseImageFile(stack), "."); err != nil {
+			fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
+			return nil, nil, err
+		}
 	}
 
 	//Редис
@@ -41,7 +51,6 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	return ctx, redisClient, nil
 }
-
 
 func redisClientStart() (*redis.Client, error) {
 	cfg := myredis.Config{

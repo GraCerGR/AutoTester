@@ -7,6 +7,7 @@ import (
 	"MainApp/commandonhost"
 	"MainApp/createconteinerpackage"
 	myredis "MainApp/redis"
+	"MainApp/settings"
 
 	//"MainApp/utilizes"
 	"context"
@@ -49,7 +50,8 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 	}
 
 	//Передаём файлы теста в тестовый контейнер
-	if err := createconteinerpackage.RunTestContainer(containerTestName); err != nil {
+
+	if err := createconteinerpackage.RunTestContainer(containerTestName, settings.ChooseImageTag(attempt.ProgrammingLanguageName)); err != nil {
 		fmt.Println("Не удалось создать test container:", err)
 		return
 	}

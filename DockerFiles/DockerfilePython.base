@@ -41,7 +41,8 @@
 
 
 # Базируемся на Node Chrome, чтобы сразу была поддержка браузера
-FROM selenium/node-chrome:4.11.0
+# FROM selenium/node-chrome:4.11.0
+FROM python:3.13-slim
 
 USER root
 
@@ -53,10 +54,11 @@ RUN apt-get update && apt-get install -y python3 python3-pip && \
     #pip3 install --no-cache-dir selenium pytest
     pip install -r /tmp/requirements.txt
 
+RUN useradd -m -s /bin/bash seluser
 
 WORKDIR /app
 
-
+RUN mkdir -p /app && chown -R seluser:seluser /app
 USER seluser
 
 # Команда по умолчанию — ничего не делать (контейнер просто узел)

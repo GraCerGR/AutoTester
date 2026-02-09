@@ -208,25 +208,6 @@ func SendSiteCustomize(hostFile, containerName string) error {
 	return nil
 }
 
-func runCmd(name string, args ...string) error {
-	fmt.Printf(">>> running: %s %v\n", name, args)
-
-	cmd := exec.Command(name, args...)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start command failed: %w", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("command execution failed: %w", err)
-	}
-
-	return nil
-}
-
 func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) error {
 	// Экранируем символы для sed (вставим обратный слэш перед & | \)
 	escapedURL := strings.NewReplacer(

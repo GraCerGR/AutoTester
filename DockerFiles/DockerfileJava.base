@@ -1,0 +1,15 @@
+# Базируемся на Node Chrome, чтобы сразу была поддержка браузера
+# FROM selenium/node-chrome:4.11.0
+FROM debian:bookworm-slim
+USER root
+
+# Java
+RUN apt-get update && \
+    apt-get install -y openjdk-17-jdk maven git && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+USER seluser
+
+CMD ["sleep", "infinity"]
