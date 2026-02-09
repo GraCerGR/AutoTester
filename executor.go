@@ -155,7 +155,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 			return checkerResult, err
 		}
 
-		result, err := checker.Checker(index, resultsFolder, correctResultsFolder)
+		result, err := checker.CheckerWithNames(index, resultsFolder, correctResultsFolder)
 		if err != nil {
 			msg := fmt.Sprintf("Ошибка сравнения:", err)
 			checkerResult.Comment = msg
@@ -180,7 +180,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 		}
 	}
 
-	checkerResult.TestingVerdict = classes.TestVerdictEnum.Ok
+	//checkerResult.TestingVerdict = classes.TestVerdictEnum.Ok
 	b, _ := json.MarshalIndent(checkerResult, "", "  ")
 	fmt.Println(string(b))
 
