@@ -177,6 +177,8 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 			checkerResult.TestingVerdict = lastVerdict
 			checkerResult.Comment = lastComment
 			break
+		} else {
+			checkerResult.TestingVerdict = classes.TestVerdictEnum.Ok
 		}
 	}
 
