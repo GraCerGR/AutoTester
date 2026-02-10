@@ -43,38 +43,45 @@ type Failure struct {
 func Parsing(resultsFilePath string, index int) error {
 	xmlFile, err := os.Open(resultsFilePath)
 	if err != nil {
-		return fmt.Errorf("Ошибка открытия файла:", err)
+		return fmt.Errorf("ошибка открытия файла: %w", err)
 	}
 	defer xmlFile.Close()
 
-	byteValue, _ := io.ReadAll(xmlFile)
-
-	var testSuites TestSuites
-	if err := xml.Unmarshal(byteValue, &testSuites); err != nil {
-		return fmt.Errorf("Ошибка парсинга XML:", err)
+	byteValue, err := io.ReadAll(xmlFile)
+	if err != nil {
+		return fmt.Errorf("ошибка чтения файла: %w", err)
 	}
 
-	/* //Вывод в консоль
-	for _, suite := range testSuites.TestSuites {
-		fmt.Printf("Тестсьют: %s | Тестов: %d | Ошибок: %d | Провалов: %d\n",
-			suite.Name, suite.Tests, suite.Errors, suite.Failures)
+	var suites TestSuites
 
-		for _, tc := range suite.TestCases {
-			if tc.Failure != nil {
-				fmt.Printf("NO %s.%s — FAIL\n", tc.ClassName, tc.Name)
-				fmt.Printf("   Причина: %s\n", tc.Failure.Message)
-			} else {
-				fmt.Printf("YES %s.%s — OK\n", tc.ClassName, tc.Name)
+	// Попытка 1: распарсить как <testsuites>
+	err1 := xml.Unmarshal(byteValue, &suites)
+	if err1 == nil && len(suites.TestSuites) > 0 {
+		// OK
+	} else {
+		// Попытка 2: распарсить как одиночный <testsuite>
+		var single TestSuite
+		err2 := xml.Unmarshal(byteValue, &single)
+		if err2 == nil && (single.Name != "" || len(single.TestCases) > 0) {
+			suites = TestSuites{TestSuites: []TestSuite{single}}
+		} else {
+			// Вернём оба возможных сообщения об ошибке для диагностики
+			if err1 != nil && err2 != nil {
+				return fmt.Errorf("ошибка парсинга XML (testsuites): %v; (testsuite): %v", err1, err2)
 			}
+			if err1 != nil {
+				return fmt.Errorf("ошибка парсинга XML (testsuites): %v", err1)
+			}
+			return fmt.Errorf("не удалось распознать структуру XML")
 		}
 	}
-	*/
 
+	// Формируем результат в map[string]string
 	results := make(map[string]string)
-
-	for _, suite := range testSuites.TestSuites {
+	for _, suite := range suites.TestSuites {
 		for _, tc := range suite.TestCases {
 			key := tc.Name
+			// считаем, что тест упал, если есть узел <failure> или текст в failure не пуст
 			if tc.Failure != nil {
 				results[key] = "fail"
 			} else {
@@ -83,8 +90,8 @@ func Parsing(resultsFilePath string, index int) error {
 		}
 	}
 
+	// Сохраняем JSON
 	outPath := changeExtToJSON(resultsFilePath, index)
-
 	outFile, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("ошибка создания файла %s: %w", outPath, err)
@@ -99,7 +106,6 @@ func Parsing(resultsFilePath string, index int) error {
 
 	fmt.Printf("Результаты сохранены в %s\n", outPath)
 	return nil
-
 }
 
 func changeExtToJSON(path string, index int) string {

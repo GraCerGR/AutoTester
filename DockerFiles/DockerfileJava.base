@@ -8,8 +8,11 @@ RUN apt-get update && \
     apt-get install -y openjdk-17-jdk maven git && \
     rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m -s /bin/bash seluser
+
 WORKDIR /app
 
+RUN mkdir -p /app && chown -R seluser:seluser /app
 USER seluser
 
 CMD ["sleep", "infinity"]
