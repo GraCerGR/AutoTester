@@ -135,8 +135,9 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 
 		//Запускает тесты в контейнере
 		if programmingLanguageName == "python" {
-			if err := createconteinerpackage.RunPythonTestsContainer(containerTest, resultsFolder); err != nil {
-				msg := fmt.Sprintf("Ошибка выполнения тестов: %v\n", err)
+			_, err := createconteinerpackage.RunPythonTestsContainer(containerTest)
+			if err != nil {
+				msg := fmt.Sprintf("Ошибка запуска Python-тестов: %v\n", err)
 				checkerResult.Comment = msg
 				return checkerResult, err
 			}
@@ -147,11 +148,16 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 				return checkerResult, err
 			}
 		} else if programmingLanguageName == "java" {
-			if err := createconteinerpackage.RunJavaTestsContainer(containerTest); err != nil {
-				msg := fmt.Sprintf("Ошибка выполнения тестов: %v\n", err)
+			_, err := createconteinerpackage.RunJavaTestsContainer(containerTest)
+			if err != nil {
+				msg := fmt.Sprintf("Ошибка выполнения Java-тестов: %v\n", err)
 				checkerResult.Comment = msg
 				return checkerResult, err
 			}
+
+			// if !passed {
+			// 	fmt.Println("Тесты упали — продолжаем обработку результатов")
+			// }
 			if err := createconteinerpackage.CopyResultsFromJavaContainer(containerTest, resultsFolder); err != nil {
 				msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 				checkerResult.Comment = msg

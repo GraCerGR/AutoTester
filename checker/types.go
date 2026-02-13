@@ -33,6 +33,7 @@ type TestCase struct {
 	Name      string   `xml:"name,attr"`
 	Time      float64  `xml:"time,attr"`
 	Failure   *Failure `xml:"failure"`
+	Error     *Failure `xml:"error"`
 }
 
 type Failure struct {
@@ -82,7 +83,7 @@ func Parsing(resultsFilePath string, index int) error {
 		for _, tc := range suite.TestCases {
 			key := tc.Name
 			// считаем, что тест упал, если есть узел <failure> или текст в failure не пуст
-			if tc.Failure != nil {
+			if tc.Failure != nil || tc.Error != nil {
 				results[key] = "fail"
 			} else {
 				results[key] = "check"

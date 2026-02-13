@@ -9,14 +9,14 @@ import (
 	"strings"
 )
 
-func RunPythonTestsContainer(image, flowName string) error {
+func RunPythonTestsContainer(image string) (bool, error) {
 	checkCmd := exec.Command("docker", "ps", "-q", "-f", fmt.Sprintf("name=%s", image))
 	out, err := checkCmd.Output()
 	if err != nil {
-		return fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
+		return false, fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
 	}
 	if len(bytes.TrimSpace(out)) == 0 {
-		return fmt.Errorf("%s", "контейнер "+image+" не запущен. Поднимите Selenium Grid и стартуйте контейнер test-node перед выполнением тестов")
+		return false, fmt.Errorf("%s", "контейнер "+image+" не запущен. Поднимите Selenium Grid и стартуйте контейнер test-node перед выполнением тестов")
 	}
 
 	args := []string{
@@ -31,13 +31,24 @@ func RunPythonTestsContainer(image, flowName string) error {
 	}
 
 	fmt.Printf(">>> Запуск команды: docker %v\n", args)
-	if err := runCmd("docker", args...); err != nil {
-		fmt.Errorf("ошибка выполнения pytest в контейнере "+image+" : %w", err)
-	}
+	// if err := runCmd("docker", args...); err != nil {
+	// 	fmt.Errorf("ошибка выполнения pytest в контейнере "+image+" : %w", err)
+	// }
 
 	//fmt.Printf("%s", "Результаты тестов сохранены в: /"+flowName+"/results.xml \n" /*filepath.Join(absResultsPath, "results.xml")*/)
 
-	return nil
+		passed, err := runCmdAllowFail("docker", args...)
+	if err != nil {
+		return false, err
+	}
+
+	if passed {
+		fmt.Println("Python тесты прошли")
+	} else {
+		fmt.Println("Python тесты не прошли (но продолжаем)")
+	}
+
+	return passed, nil
 }
 
 

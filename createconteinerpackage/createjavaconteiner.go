@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func RunJavaTestsContainer(containerName string) error {
+func RunJavaTestsContainer(containerName string) (bool, error) {
 	// Проверяем, что контейнер запущен
 	checkCmd := exec.Command(
 		"docker", "ps", "-q",
@@ -18,11 +18,11 @@ func RunJavaTestsContainer(containerName string) error {
 
 	out, err := checkCmd.Output()
 	if err != nil {
-		return fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
+		return false, fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
 	}
 
 	if len(bytes.TrimSpace(out)) == 0 {
-		return fmt.Errorf(
+		return false, fmt.Errorf(
 			"контейнер %s не запущен. Поднимите Selenium Hub и стартуйте контейнер перед выполнением тестов",
 			containerName,
 		)
@@ -39,15 +39,18 @@ func RunJavaTestsContainer(containerName string) error {
 	}
 
 	fmt.Printf(">>> Запуск команды: docker %v\n", args)
-	if err := runCmd("docker", args...); err != nil {
-		return fmt.Errorf(
-			"ошибка выполнения Java-тестов в контейнере %s: %w",
-			containerName, err,
-		)
+	passed, err := runCmdAllowFail("docker", args...)
+	if err != nil {
+		return false, err
 	}
 
-	fmt.Println("Java тесты успешно выполнены через Selenium Hub")
-	return nil
+	if passed {
+		fmt.Println("Java тесты прошли")
+	} else {
+		fmt.Println("Java тесты не прошли (но продолжаем)")
+	}
+
+	return passed, nil
 }
 
 func SendSiteJavaCustomize(dir, hostFile, containerName string) error {

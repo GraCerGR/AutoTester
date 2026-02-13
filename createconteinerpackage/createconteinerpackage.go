@@ -28,6 +28,32 @@ func runCmd(name string, args ...string) error {
 	return nil
 }
 
+func runCmdAllowFail(name string, args ...string) (bool, error) {
+	fmt.Printf(">>> running: %s %v\n", name, args)
+
+	cmd := exec.Command(name, args...)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return false, fmt.Errorf("start command failed: %w", err)
+	}
+
+	err := cmd.Wait()
+
+	if err == nil {
+		return true, nil
+	}
+
+	if _, ok := err.(*exec.ExitError); ok {
+		fmt.Println("Команда завершилась с ненулевым кодом")
+		return false, nil
+	}
+
+	return false, fmt.Errorf("command execution failed: %w", err)
+}
+
 func DockerBuild(imageTag string, dockerfileName string, contextPath string) error {
 	fmt.Printf(">>> Проверка и сборка образа: %s\n", imageTag)
 
@@ -140,8 +166,6 @@ func SendProjectToImage(contextDir, containerName string, site bool) error {
 
 	return nil
 }
-
-
 
 func RemoveProjectFromContainer(containerName string, site bool) error {
 	if containerName == "" {
