@@ -65,27 +65,24 @@ func SendSiteJavaCustomize(dir, hostFile, containerName string) error {
 }
 
 func ReplaceTestURLInJavaContainer(containerName, varName, newURL string) error {
-	// Экранируем символы для sed
 	escapedURL := strings.NewReplacer(
 		`&`, `\&`,
 		`|`, `\|`,
 		`\`, `\\`,
 	).Replace(newURL)
 
-	// sed: заменяем строки вида:
 	// ... TEST_URL = "..."
 	sedExpr := fmt.Sprintf(`s|\(%s\s*=\s*\)".*"|\1"%s"|`, varName, escapedURL)
 
-	cmd := exec.Command(
+	if err := RunCmd(
 		"docker", "exec", containerName,
 		"bash", "-c",
 		fmt.Sprintf(`find /app -name '*.java' -exec sed -i '%s' {} +`, sedExpr),
-	)
+	); err != nil {
+		return fmt.Errorf("ошибка замены URL: %w", err)
+	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
+	return nil
 }
 
 func AddSurefireReportConfig(projectDir, resultsDir string) error {

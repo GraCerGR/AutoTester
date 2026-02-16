@@ -3,7 +3,6 @@ package conteinermanager
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -57,26 +56,24 @@ func SendSitePythonCustomize(dir, hostFile, containerName string) error {
 }
 
 func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) error {
-	// Экранируем символы для sed (вставим обратный слэш перед & | \)
 	escapedURL := strings.NewReplacer(
 		`&`, `\&`,
 		`|`, `\|`,
 		`\`, `\\`,
 	).Replace(newURL)
 
-	// sed: заменить строку вида varName = "...".
+	//varName = "...".
 	sedExpr := fmt.Sprintf(`s|^\(%s\s*=\s*\).*|\1"%s"|`, varName, escapedURL)
 
-	cmd := exec.Command(
+	if err :=  RunCmd(
 		"docker", "exec", containerName,
 		"bash", "-c",
 		fmt.Sprintf(`find /app -name '*.py' -exec sed -i '%s' {} +`, sedExpr),
-	)
+	); err != nil {
+		return fmt.Errorf("ошибка замены URL: %w", err)
+	}
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
+	return nil
 }
 
 func CopyResultsFromPythonContainer(container, hostPath string) error {
