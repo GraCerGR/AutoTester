@@ -1,7 +1,7 @@
 package main
 
 import (
-	createconteinerpackage "MainApp/createconteinerpackage"
+	"MainApp/conteinermanager"
 	dockercompose "MainApp/dockercompose"
 	myredis "MainApp/redis"
 	"MainApp/settings"
@@ -24,7 +24,7 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	//Сборка образов для тестовых контейнеров
 	for _, stack := range settings.Stacks {
-		if err := createconteinerpackage.DockerBuild(settings.ChooseImageTag(stack), "DockerFiles/"+settings.ChooseImageFile(stack), "."); err != nil {
+		if err := conteinermanager.DockerBuild(settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
 			fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 			return nil, nil, err
 		}

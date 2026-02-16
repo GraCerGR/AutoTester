@@ -8,7 +8,7 @@ x-site-defaults: &site_defaults
   image: mysite:latest
   build:
     context: ..
-    dockerfile: DockerFiles/Dockerfile.site
+    dockerfile: dockerfiles/site/Dockerfile.site
   depends_on:
     - selenium-hub
   restart: unless-stopped
@@ -19,21 +19,13 @@ x-testpython-defaults: &testpython_defaults
   image: testimagepython:latest
   build:
     context: ..
-    dockerfile: DockerFiles/DockerfilePython.base
-#   depends_on:
-#     - selenium-hub
-#   volumes:
-#     - ../results:/results
-#   environment:
-#     - SE_EVENT_BUS_HOST=selenium-hub
-#     - SE_EVENT_BUS_PUBLISH_PORT=4442
-#     - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    dockerfile: dockerfiles/python/DockerfilePython.base
 
 x-testjava-defaults: &testjava_defaults
   image: testimagejava:latest
   build:
     context: ..
-    dockerfile: DockerFiles/DockerfileJava.base
+    dockerfile: dockerfiles/java/DockerfileJava.base
 
 
 services:
@@ -71,67 +63,23 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-    #ports:
-    #  - "7900:7900" # VNC доступ (опционально)
 
   site1:
     <<: *site_defaults
     container_name: site1
-    #ports:
-    #  - "8080:80"
 
   site2:
     <<: *site_defaults
     container_name: site2
-    #ports:
-    #  - "8081:80"
 
   site3:
     <<: *site_defaults
     container_name: site3
-    #ports:
-    #  - "8082:80"
 
   site4:
     <<: *site_defaults
     container_name: site4
-    #ports:
-    #  - "8083:80"
 
   site5:
     <<: *site_defaults
     container_name: site5
-    #ports:
-    #  - "8084:80"
-
-
-
-  # test-node1:
-  #   <<: *test_defaults
-  #   container_name: test-node1
-  #   labels:
-  #     - "stack=Python"
-
-  # test-node2:
-  #   <<: *test_defaults
-  #   container_name: test-node2
-  #   labels:
-  #     - "stack=Python"
-
-  # test-node3:
-  #   <<: *test_defaults
-  #   container_name: test-node3
-  #   labels:
-  #     - "stack=Java"
-
-  # test-node4:
-  #   <<: *test_defaults
-  #   container_name: test-node4
-  #   labels:
-  #     - "stack=Java"
-
-  # test-node5:
-  #   <<: *test_defaults
-  #   container_name: test-node5
-  #   labels:
-  #     - "stack=None"

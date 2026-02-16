@@ -3,9 +3,8 @@ package main
 import (
 	"MainApp/checker"
 	"MainApp/classes"
-	"MainApp/commandongit"
-	"MainApp/commandonhost"
-	"MainApp/createconteinerpackage"
+	"MainApp/commands"
+	"MainApp/conteinermanager"
 	myredis "MainApp/redis"
 	"MainApp/settings"
 
@@ -37,48 +36,48 @@ func ExecutorMain(ctx context.Context, redisClient *redis.Client, attempt classe
 	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containerSiteName)
 
 	//Загрузка решения из гита
-	if err := commandongit.DownloadFromGit(attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
 		fmt.Printf("Ошибка загрузки решения с гита: %v\n", err)
 		return
 	}
 
 	//Запускаем нужный контейнер для тестов
-	if err := createconteinerpackage.RunTestContainer(containerTestName, settings.ChooseImageTag(attempt.ProgrammingLanguageName)); err != nil {
+	if err := conteinermanager.RunTestContainer(containerTestName, settings.ChooseImageTag(attempt.ProgrammingLanguageName)); err != nil {
 		fmt.Println("Не удалось создать test container:", err)
 		return
 	}
 
 	//Передаём файлы теста в тестовый контейнер
-	if err := createconteinerpackage.SendProjectToImage("Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
+	if err := conteinermanager.SendProjectToImage("Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
 		fmt.Printf("Ошибка передачи проекта в контейнер: %v\n", err)
 		return
 	}
 
 	if attempt.ProgrammingLanguageName == "python" {
 		//Отправляет скрипт перенаправления запросов в хаб селениум грида
-		if err := createconteinerpackage.ReplaceTestURLInPythonContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
+		if err := conteinermanager.ReplaceTestURLInPythonContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
 			fmt.Printf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
 			return
 		}
 
-		if err := createconteinerpackage.SendSitePythonCustomize("DockerFiles", "sitecustomize.py", containerTestName); err != nil {
+		if err := conteinermanager.SendSitePythonCustomize(settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "sitecustomize.py", containerTestName); err != nil {
 			fmt.Println("Ошибка:", err)
 			return
 		}
 	} else if attempt.ProgrammingLanguageName == "java" {
 		//Отправляет скрипт перенаправления запросов в хаб селениум грида
-		if err := createconteinerpackage.ReplaceTestURLInJavaContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
+		if err := conteinermanager.ReplaceTestURLInJavaContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
 			fmt.Printf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
 			return
 		}
-		if err := createconteinerpackage.SendSiteJavaCustomize("DockerFiles", "ChromeDriver.java", containerTestName); err != nil {
+		if err := conteinermanager.SendSiteJavaCustomize(settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "ChromeDriver.java", containerTestName); err != nil {
 			fmt.Println("Ошибка:", err)
 			return
 		}
 	}
 
 	//Загрузка сайта из гита
-	if err := commandongit.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
 		fmt.Printf("Ошибка загрузки сайта с гита: %v\n", err)
 		return
 	}
@@ -127,7 +126,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 	for _, index := range dirs {
 		path := dirMap[index]
 
-		if err := createconteinerpackage.SendProjectToImage(path, containerSite, true); err != nil {
+		if err := conteinermanager.SendProjectToImage(path, containerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
 			checkerResult.Comment = msg
 			return checkerResult, err
@@ -135,20 +134,20 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 
 		//Запускает тесты в контейнере
 		if programmingLanguageName == "python" {
-			_, err := createconteinerpackage.RunPythonTestsContainer(containerTest)
+			_, err := conteinermanager.RunPythonTestsContainer(containerTest)
 			if err != nil {
 				msg := fmt.Sprintf("Ошибка запуска Python-тестов: %v\n", err)
 				checkerResult.Comment = msg
 				return checkerResult, err
 			}
 			//Загрузка результатов с контейнера
-			if err := createconteinerpackage.CopyResultsFromPythonContainer(containerTest, resultsFolder); err != nil {
+			if err := conteinermanager.CopyResultsFromPythonContainer(containerTest, resultsFolder); err != nil {
 				msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 				checkerResult.Comment = msg
 				return checkerResult, err
 			}
 		} else if programmingLanguageName == "java" {
-			_, err := createconteinerpackage.RunJavaTestsContainer(containerTest)
+			_, err := conteinermanager.RunJavaTestsContainer(containerTest)
 			if err != nil {
 				msg := fmt.Sprintf("Ошибка выполнения Java-тестов: %v\n", err)
 				checkerResult.Comment = msg
@@ -158,7 +157,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 			// if !passed {
 			// 	fmt.Println("Тесты упали — продолжаем обработку результатов")
 			// }
-			if err := createconteinerpackage.CopyResultsFromJavaContainer(containerTest, resultsFolder); err != nil {
+			if err := conteinermanager.CopyResultsFromJavaContainer(containerTest, resultsFolder); err != nil {
 				msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 				checkerResult.Comment = msg
 				return checkerResult, err
@@ -184,7 +183,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 		checkerResult.AllTests = append(checkerResult.AllTests, result)
 
 		//Удаляем файлы сайта в сайтовом контейнере
-		if err := createconteinerpackage.RemoveProjectFromContainer(containerSite, true); err != nil {
+		if err := conteinermanager.RemoveProjectFromContainer(containerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
 			checkerResult.Comment = msg
 			return checkerResult, err
@@ -211,22 +210,22 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 func ClearAllContainers(containerTestName, containerSiteName string) {
 
 	//Удаляем файлы теста в контейнере
-	if err := createconteinerpackage.RemoveProjectFromContainer(containerTestName, false); err != nil {
+	if err := conteinermanager.RemoveProjectFromContainer(containerTestName, false); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 	}
 
 	//Удаляем файлы сайта в контейнере
-	if err := createconteinerpackage.RemoveProjectFromContainer(containerSiteName, true); err != nil {
+	if err := conteinermanager.RemoveProjectFromContainer(containerSiteName, true); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 	}
 
 	//Удаляем файлы сайта и решения с хоста
-	if err := commandonhost.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
-		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
+	if err := commands.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка удаления файлов сайта: %v\n", err)
 	}
-	if err := commandonhost.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
-		fmt.Printf("Ошибка отчистки файлов гита: %v\n", err)
+	if err := commands.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
+		fmt.Printf("Ошибка удаления файлов решения: %v\n", err)
 	}
 
-	createconteinerpackage.RemoveTestContainer(containerTestName)
+	conteinermanager.RemoveTestContainer(containerTestName)
 }

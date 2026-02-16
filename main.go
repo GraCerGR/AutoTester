@@ -17,16 +17,16 @@ func main() {
 
 	//Прослушивание очереди (пока прослушивание БД)
 	go func() {
-		err := StartAttemptInsertListener(ctx, settings.PostgresLink, 
+		err := StartAttemptInsertListener(ctx, settings.PostgresLink,
 			func(ctx context.Context, a classes.Attempt) error {
-			//go Executor(ctx, redisClient, a)
-			//return nil
-			return redis.EnqueueAttempt(ctx, redisClient, a)
-		},
-	)
+				//go Executor(ctx, redisClient, a)
+				//return nil
+				return redis.EnqueueAttempt(ctx, redisClient, a)
+			},
+		)
 
 		if err != nil && ctx.Err() == nil {
-			fmt.Errorf("watcher stopped with error: %v", err)
+			fmt.Errorf("Прослушивание закончено с ошибкой: %v", err)
 		}
 	}()
 

@@ -1,0 +1,168 @@
+package commands
+
+import (
+	"archive/zip"
+	"bytes"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+
+func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
+	if repoURL == "" {
+		return fmt.Errorf("RepoURL is required")
+	}
+	if targetDir == "" {
+		return fmt.Errorf("TargetDir is required")
+	}
+	if branch == "" {
+		branch = "main"
+	}
+
+	zipURL, err := buildZipURL(repoURL, branch)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(">>> downloading:", zipURL)
+
+	req, err := http.NewRequest("GET", zipURL, nil)
+	if err != nil {
+		return err
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("git download failed: %s", resp.Status)
+	}
+
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	reader, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		return err
+	}
+
+	os.RemoveAll(targetDir)
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return err
+	}
+
+	var root string
+
+	for _, f := range reader.File {
+		if root == "" {
+			root = strings.Split(f.Name, "/")[0]
+		}
+
+		rel := strings.TrimPrefix(f.Name, root+"/")
+
+		if subDir != "" {
+			if !strings.HasPrefix(rel, subDir+"/") {
+				continue
+			}
+			rel = strings.TrimPrefix(rel, subDir+"/")
+		}
+
+		if rel == "" {
+			continue
+		}
+
+		dst := filepath.Join(targetDir, rel)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(dst, 0755)
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+			return err
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		out, err := os.Create(dst)
+		if err != nil {
+			rc.Close()
+			return err
+		}
+
+		_, err = io.Copy(out, rc)
+		rc.Close()
+		out.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Println(">>> git download completed to:", targetDir)
+	return nil
+}
+
+
+func buildZipURL(repo, ref string) (string, error) {
+	repo = strings.TrimSuffix(repo, ".git")
+
+	if strings.Contains(repo, "github.com") {
+		return fmt.Sprintf("%s/archive/refs/heads/%s.zip", repo, ref), nil
+	}
+
+	if strings.Contains(repo, "gitlab.com") {
+		return fmt.Sprintf("%s/-/archive/%s/repo-%s.zip", repo, ref, ref), nil
+	}
+
+	if strings.Contains(repo, "bitbucket.org") {
+		return fmt.Sprintf("%s/get/%s.zip", repo, ref), nil
+	}
+
+	return "", fmt.Errorf("unsupported git provider")
+}
+
+func GetRepoNameFromURL(repoURL string) (string, error) {
+	if repoURL == "" {
+		return "", fmt.Errorf("empty repo url")
+	}
+
+	// Убираем query и якоря
+	if i := strings.IndexAny(repoURL, "?#"); i != -1 {
+		repoURL = repoURL[:i]
+	}
+
+	// Убираем trailing slash
+	repoURL = strings.TrimRight(repoURL, "/")
+
+	// Берём последний сегмент
+	parts := strings.Split(repoURL, "/")
+	name := parts[len(parts)-1]
+
+	// Убираем .git
+	name = strings.TrimSuffix(name, ".git")
+
+	if name == "" {
+		return "", fmt.Errorf("invalid repo url")
+	}
+
+	return name, nil
+}
