@@ -3,17 +3,27 @@ package settings
 import "time"
 
 // Redis
-var RedisAddr = "localhost:6379"
-var RedisPassword = "test1234"
-var RedisDB = 0
-var RedisMaxRetries = 5
-var RedisTimeout = 5 * time.Second
-var DialTimeout = 30 * time.Second
+const (
+	RedisAddr = "localhost:6379"
+	RedisPassword = "test1234"
+	RedisDB = 0
+	RedisMaxRetries = 5
+	RedisTimeout = 5 * time.Second
+	DialTimeout = 30 * time.Second
+)
 
-var PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
+// Database
+const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
+
+// Selenium Grid
+const (
+	HubStatusURL        = "http://localhost:4444/status"
+	HubURL              = "http://localhost:4444"
+	HubWaitTimeout      = 40 * time.Second
+	HubWaitPollInterval = 1 * time.Second
+)
 
 // Контейнеры
-
 type Container struct {
 	Name  string
 	Stack string

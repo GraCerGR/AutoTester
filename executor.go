@@ -200,8 +200,8 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 		}
 	}
 
-	//checkerResult.TestingVerdict = classes.TestVerdictEnum.Ok
 	b, _ := json.MarshalIndent(checkerResult, "", "  ")
+	fmt.Println("Результат проверки:")
 	fmt.Println(string(b))
 	return checkerResult, nil
 }

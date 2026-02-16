@@ -1,7 +1,6 @@
 package conteinermanager
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,25 +9,11 @@ import (
 )
 
 func RunJavaTestsContainer(containerName string) (bool, error) {
-	// Проверяем, что контейнер запущен
-	checkCmd := exec.Command(
-		"docker", "ps", "-q",
-		"-f", fmt.Sprintf("name=%s", containerName),
-	)
 
-	out, err := checkCmd.Output()
-	if err != nil {
-		return false, fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
+	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
+		return false, fmt.Errorf("контейнер %s не запущен: %w", containerName, err)
 	}
 
-	if len(bytes.TrimSpace(out)) == 0 {
-		return false, fmt.Errorf(
-			"контейнер %s не запущен. Поднимите Selenium Hub и стартуйте контейнер перед выполнением тестов",
-			containerName,
-		)
-	}
-
-	// Команда запуска Java-тестов с указанием Selenium Hub
 	args := []string{
 		"exec",
 		"-u", "seluser",
@@ -38,12 +23,12 @@ func RunJavaTestsContainer(containerName string) (bool, error) {
 		"mvn", "clean", "test",
 	}
 
-	fmt.Printf(">>> Запуск команды: docker %v\n", args)
+	fmt.Printf("Запуск Java тестов: docker %v\n", args)
+
 	passed, err := runCmdAllowFail("docker", args...)
 	if err != nil {
 		return false, err
 	}
-
 	if passed {
 		fmt.Println("Java тесты прошли")
 	} else {
@@ -67,13 +52,11 @@ func SendSiteJavaCustomize(dir, hostFile, containerName string) error {
 	containerDir := "/app/src/test/java/org/selenium/chrome/"
 	dst := fmt.Sprintf("%s:%s%s", containerName, containerDir, hostFile)
 
-	fmt.Printf(">>> docker exec %s mkdir -p %s\n", containerName, containerDir)
-	if err := runCmd("docker", "exec", containerName, "mkdir", "-p", containerDir); err != nil {
+	if err := RunCmd("docker", "exec", containerName, "mkdir", "-p", containerDir); err != nil {
 		return fmt.Errorf("не удалось создать директорию в контейнере: %w", err)
 	}
 
-	fmt.Printf(">>> docker cp %s %s\n", hostPath, dst)
-	if err := runCmd("docker", "cp", hostPath, dst); err != nil {
+	if err := RunCmd("docker", "cp", hostPath, dst); err != nil {
 		return fmt.Errorf("ошибка копирования: %w", err)
 	}
 
@@ -223,7 +206,7 @@ func CopyResultsFromJavaContainer(container, hostPath string) error {
 
 	dstFile := filepath.Join(hostPath, "results.xml")
 
-	if err := runCmd("docker", "cp", fmt.Sprintf("%s:%s", container, srcFile), dstFile); err != nil {
+	if err := RunCmd("docker", "cp", fmt.Sprintf("%s:%s", container, srcFile), dstFile); err != nil {
 		return fmt.Errorf("не удалось скопировать файл из контейнера: %w", err)
 	}
 

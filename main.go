@@ -19,8 +19,6 @@ func main() {
 	go func() {
 		err := StartAttemptInsertListener(ctx, settings.PostgresLink,
 			func(ctx context.Context, a classes.Attempt) error {
-				//go Executor(ctx, redisClient, a)
-				//return nil
 				return redis.EnqueueAttempt(ctx, redisClient, a)
 			},
 		)

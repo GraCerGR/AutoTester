@@ -102,7 +102,7 @@ func loadJSONMapWithSequence(path string) ([]kv, error) {
 	var pairs []kv
 
 	for dec.More() {
-		// Ключ (строка)
+
 		tk, err := dec.Token()
 		if err != nil {
 			return nil, err

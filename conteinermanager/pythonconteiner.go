@@ -1,7 +1,6 @@
 package conteinermanager
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,39 +8,27 @@ import (
 	"strings"
 )
 
-func RunPythonTestsContainer(image string) (bool, error) {
-	checkCmd := exec.Command("docker", "ps", "-q", "-f", fmt.Sprintf("name=%s", image))
-	out, err := checkCmd.Output()
-	if err != nil {
-		return false, fmt.Errorf("не удалось выполнить проверку контейнеров: %w", err)
-	}
-	if len(bytes.TrimSpace(out)) == 0 {
-		return false, fmt.Errorf("%s", "контейнер "+image+" не запущен. Поднимите Selenium Grid и стартуйте контейнер test-node перед выполнением тестов")
+func RunPythonTestsContainer(containerName string) (bool, error) {
+	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
+		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
 	}
 
 	args := []string{
 		"exec",
-		// запуск от имени seluser (если нужно, можно убрать или заменить)
 		"-u", "seluser",
 		"-w", "/app",
 		"-e", "PYTHONPATH=/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
-		image,
+		containerName,
 		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
 	}
 
-	fmt.Printf(">>> Запуск команды: docker %v\n", args)
-	// if err := runCmd("docker", args...); err != nil {
-	// 	fmt.Errorf("ошибка выполнения pytest в контейнере "+image+" : %w", err)
-	// }
+	fmt.Printf("Запуск Python тестов: docker %v\n", args)
 
-	//fmt.Printf("%s", "Результаты тестов сохранены в: /"+flowName+"/results.xml \n" /*filepath.Join(absResultsPath, "results.xml")*/)
-
-		passed, err := runCmdAllowFail("docker", args...)
+	passed, err := runCmdAllowFail("docker", args...)
 	if err != nil {
 		return false, err
 	}
-
 	if passed {
 		fmt.Println("Python тесты прошли")
 	} else {
@@ -50,7 +37,6 @@ func RunPythonTestsContainer(image string) (bool, error) {
 
 	return passed, nil
 }
-
 
 func SendSitePythonCustomize(dir, hostFile, containerName string) error {
 	if hostFile == "" {
@@ -62,8 +48,7 @@ func SendSitePythonCustomize(dir, hostFile, containerName string) error {
 
 	// Копируем в /app контейнера
 	dst := fmt.Sprintf("%s:/app/%s", containerName, hostFile)
-	fmt.Printf(">>> docker cp %s %s\n", filepath.Join(dir, hostFile), dst)
-	if err := runCmd("docker", "cp", filepath.Join(dir, hostFile), dst); err != nil {
+	if err := RunCmd("docker", "cp", filepath.Join(dir, hostFile), dst); err != nil {
 		return fmt.Errorf("ошибка копирования: %w", err)
 	}
 
@@ -96,7 +81,7 @@ func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) erro
 
 func CopyResultsFromPythonContainer(container, hostPath string) error {
 	os.MkdirAll(hostPath, 0755)
-	return runCmd("docker", "cp",
+	return RunCmd("docker", "cp",
 		container+":/app/results/results.xml",
 		filepath.Join(hostPath, "results.xml"),
 	)

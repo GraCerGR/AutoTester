@@ -57,7 +57,7 @@ func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ct
 			continue
 		}
 
-		// передаём дальше в твою бизнес-логику (Executor/обработчик)
+		// передаём дальше в Executor
 		if err := onNew(ctx, att); err != nil {
 			log.Printf("processing attempt %s failed: %v", id, err)
 		}

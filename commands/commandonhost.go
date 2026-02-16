@@ -17,7 +17,7 @@ func ClearHostFolder(path string) error {
 	}
 
 	if abs == "/" || abs == "." {
-		return fmt.Errorf("Попытка удаления корневой папки: %s", abs)
+		return fmt.Errorf("Попытка удаления корневой папки прервана: %s", abs)
 	}
 
 	if _, err := os.Stat(abs); os.IsNotExist(err) {

@@ -8,6 +8,7 @@ const (
 	verdictFail        TestVerdict = "FAIL"
 	verdictEmpty       TestVerdict = ""
 	verdictWrongLength TestVerdict = "WRONG_LENGTH"
+	verdictTimeout     TestVerdict = "TIMEOUT"
 )
 
 var TestVerdictEnum = struct {
@@ -16,10 +17,12 @@ var TestVerdictEnum = struct {
 	Fail        TestVerdict
 	Empty       TestVerdict
 	WrongLength TestVerdict
+	Timeout     TestVerdict
 }{
 	Ok:          verdictOk,
 	Fail:        verdictFail,
 	Empty:       verdictEmpty,
 	WrongAnswer: verdictWrongAnswer,
 	WrongLength: verdictWrongLength,
+	Timeout:     verdictTimeout,
 }

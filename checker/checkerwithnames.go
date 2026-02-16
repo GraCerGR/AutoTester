@@ -60,7 +60,7 @@ func CheckerWithNames(index int, resultsDir string, standartDir string) (checker
 		}
 	}
 
-	for key, _ := range actual {
+	for key := range actual {
 		_, exists := expected[key]
 
 		if !exists {

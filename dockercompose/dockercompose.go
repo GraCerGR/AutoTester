@@ -1,41 +1,34 @@
 package dockercompose
 
 import (
+	"MainApp/conteinermanager"
+	"MainApp/settings"
 	"fmt"
 	"net/http"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
-)
-
-const (
-	hubStatusURL        = "http://localhost:4444/status"
-	hubURL              = "http://localhost:4444"
-	hubWaitTimeout      = 40 * time.Second
-	hubWaitPollInterval = 1 * time.Second
 )
 
 func StartCompose(composeDir string) error {
 	absDir, err := filepath.Abs(composeDir)
 	if err != nil {
-		return fmt.Errorf("не удалось получить абсолютный путь: %w", err)
+		return fmt.Errorf("Не удалось получить абсолютный путь: %w", err)
 	}
 
-	fmt.Println("=== Запуск контейнеров через docker compose ===")
+	fmt.Println("Запуск контейнеров docker compose")
 
-	if err := runCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d"); err != nil {
+	if err := conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d"); err != nil {
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 
-	fmt.Println("=== Ожидание готовности Selenium Hub ...")
-	if err := WaitForHub(hubWaitTimeout); err != nil {
-		fmt.Println("=== Hub не стал готов вовремя, показываем логи:")
-		_ = runCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
-		return fmt.Errorf("hub not ready: %w", err)
+	fmt.Println("Ожидание готовности Selenium Hub")
+	if err := WaitForHub(settings.HubWaitTimeout); err != nil {
+		fmt.Println("Hub не стал готов вовремя:")
+		_ = conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
+		return fmt.Errorf("Hub не готов: %w", err)
 	}
 
-	fmt.Println("Selenium Grid запущен и готов по адресу:", hubURL)
+	fmt.Println("Selenium Grid запущен и готов по адресу:", settings.HubURL)
 	return nil
 }
 
@@ -46,7 +39,7 @@ func StopCompose(composeDir string) error {
 	}
 
 	fmt.Println("=== Остановка Selenium Grid ===")
-	if err := runCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
+	if err := conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
 		return fmt.Errorf("docker compose down failed: %w", err)
 	}
 
@@ -54,30 +47,11 @@ func StopCompose(composeDir string) error {
 	return nil
 }
 
-func runCmd(name string, args ...string) error {
-	fmt.Printf(">>> running: %s %v\n", name, args)
-
-	cmd := exec.Command(name, args...)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start command failed: %w", err)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("command execution failed: %w", err)
-	}
-
-	return nil
-}
-
-// WaitForHub опрашивает http://localhost:4444/status до таймаута.
+// WaitForHub опрашивает хаб селениума до таймаута.
 func WaitForHub(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		resp, err := http.Get(hubStatusURL)
+		resp, err := http.Get(settings.HubStatusURL)
 		if err == nil && resp.StatusCode == 200 {
 			// успех
 			_ = resp.Body.Close()
@@ -86,7 +60,7 @@ func WaitForHub(timeout time.Duration) error {
 		if resp != nil {
 			_ = resp.Body.Close()
 		}
-		time.Sleep(hubWaitPollInterval)
+		time.Sleep(settings.HubWaitPollInterval)
 	}
-	return fmt.Errorf("timeout waiting for hub at %s", hubStatusURL)
+	return fmt.Errorf("timeout waiting for hub at %s", settings.HubStatusURL)
 }

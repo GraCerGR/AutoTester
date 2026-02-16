@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-
 func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 	if repoURL == "" {
 		return fmt.Errorf("RepoURL is required")
@@ -28,7 +27,7 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 		return err
 	}
 
-	fmt.Println(">>> downloading:", zipURL)
+	fmt.Println("Загрузка репозитория:", zipURL)
 
 	req, err := http.NewRequest("GET", zipURL, nil)
 	if err != nil {
@@ -48,7 +47,7 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("git download failed: %s", resp.Status)
+		return fmt.Errorf("Ошибка загрузки репозитория: %s", resp.Status)
 	}
 
 	buf, err := io.ReadAll(resp.Body)
@@ -117,10 +116,9 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 		}
 	}
 
-	fmt.Println(">>> git download completed to:", targetDir)
+	fmt.Println("Загрузка репозитория завершена в:", targetDir)
 	return nil
 }
-
 
 func buildZipURL(repo, ref string) (string, error) {
 	repo = strings.TrimSuffix(repo, ".git")
@@ -138,31 +136,4 @@ func buildZipURL(repo, ref string) (string, error) {
 	}
 
 	return "", fmt.Errorf("unsupported git provider")
-}
-
-func GetRepoNameFromURL(repoURL string) (string, error) {
-	if repoURL == "" {
-		return "", fmt.Errorf("empty repo url")
-	}
-
-	// Убираем query и якоря
-	if i := strings.IndexAny(repoURL, "?#"); i != -1 {
-		repoURL = repoURL[:i]
-	}
-
-	// Убираем trailing slash
-	repoURL = strings.TrimRight(repoURL, "/")
-
-	// Берём последний сегмент
-	parts := strings.Split(repoURL, "/")
-	name := parts[len(parts)-1]
-
-	// Убираем .git
-	name = strings.TrimSuffix(name, ".git")
-
-	if name == "" {
-		return "", fmt.Errorf("invalid repo url")
-	}
-
-	return name, nil
 }

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	//"honnef.co/go/tools/config"
 )
 
 type Config struct {
