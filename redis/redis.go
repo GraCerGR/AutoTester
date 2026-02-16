@@ -71,11 +71,12 @@ func GetFreeContainer(ctx context.Context, rdb *redis.Client, containers []setti
 
 func SetContainerStatus(ctx context.Context, rdb *redis.Client, container, status string) error {
 	key := fmt.Sprintf("container:%s", container)
-	if status == "free" {
+	switch status {
+	case "free":
 		return rdb.HSet(ctx, key, "status", status).Err()
-	} else if status == "busy" {
+	case "busy":
 		return rdb.HSet(ctx, key, "status", status).Err()
-	} else {
+	default:
 		return rdb.HSet(ctx, key, "status", "busy").Err()
 	}
 }

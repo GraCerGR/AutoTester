@@ -12,23 +12,20 @@ import (
 func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ctx context.Context, a classes.Attempt) error) error {
 	pool, err := pgxpool.New(ctx, pgDSN)
 	if err != nil {
-		fmt.Printf("pgxpool.New: %w", err)
-		return err
+		return fmt.Errorf("pgxpool.New: %v", err)
 	}
 	defer pool.Close()
 
 	// Берём отдельное подключение для LISTEN (чтобы уведомления не “пропадали” среди запросов пула)
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
-		fmt.Printf("acquire conn: %w", err)
-		return err
+		return fmt.Errorf("acquire conn: %v", err)
 	}
 	defer conn.Release()
 
 	_, err = conn.Exec(ctx, `LISTEN attempt_insert`)
 	if err != nil {
-		fmt.Printf("LISTEN failed: %w", err)
-		return err
+		return fmt.Errorf("LISTEN attempt_insert failed: %v", err)
 	}
 	log.Println("LISTEN attempt_insert готов")
 
@@ -43,7 +40,7 @@ func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ct
 		notification, err := conn.Conn().WaitForNotification(ctx)
 		if err != nil {
 			// при разрыве соединения/контекста просто выходим (можно заворачивать в рестарт-луп)
-			fmt.Printf("wait notification: %w", err)
+			fmt.Printf("wait notification: %v", err)
 			return err
 		}
 		if notification == nil {

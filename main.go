@@ -11,7 +11,7 @@ import (
 func main() {
 	ctx, redisClient, err := Runner()
 	if err != nil {
-		fmt.Errorf("При запуске runner'а произошла ошибка: %s", err)
+		fmt.Printf("При запуске runner'а произошла ошибка: %s", err)
 		return
 	}
 
@@ -24,7 +24,7 @@ func main() {
 		)
 
 		if err != nil && ctx.Err() == nil {
-			fmt.Errorf("Прослушивание закончено с ошибкой: %v", err)
+			fmt.Printf("Прослушивание закончено с ошибкой: %v", err)
 		}
 	}()
 

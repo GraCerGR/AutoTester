@@ -28,7 +28,7 @@ func Executor(ctx context.Context, redisClient *redis.Client, attempt classes.At
 
 	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
 	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "free")
-	fmt.Printf("OK")
+	fmt.Printf("Executor свободен для новых задач\n")
 }
 
 func ExecutorMain(ctx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName, containerSiteName string) {
@@ -53,7 +53,8 @@ func ExecutorMain(ctx context.Context, redisClient *redis.Client, attempt classe
 		return
 	}
 
-	if attempt.ProgrammingLanguageName == "python" {
+	switch attempt.ProgrammingLanguageName {
+	case "python":
 		//Отправляет скрипт перенаправления запросов в хаб селениум грида
 		if err := conteinermanager.ReplaceTestURLInPythonContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
 			fmt.Printf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
@@ -64,7 +65,7 @@ func ExecutorMain(ctx context.Context, redisClient *redis.Client, attempt classe
 			fmt.Println("Ошибка:", err)
 			return
 		}
-	} else if attempt.ProgrammingLanguageName == "java" {
+	case "java":
 		//Отправляет скрипт перенаправления запросов в хаб селениум грида
 		if err := conteinermanager.ReplaceTestURLInJavaContainer(containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
 			fmt.Printf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
@@ -118,9 +119,9 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 	}
 
 	if len(dirs) == 0 {
-		msg := fmt.Sprintf("Не найдено подпапок с числовыми именами.")
+		msg := "Не найдено подпапок с числовыми именами."
 		checkerResult.Comment = msg
-		return checkerResult, err
+		return checkerResult, fmt.Errorf("%s", msg)
 	}
 
 	for _, index := range dirs {
@@ -133,7 +134,8 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 		}
 
 		//Запускает тесты в контейнере
-		if programmingLanguageName == "python" {
+		switch programmingLanguageName {
+		case "python":
 			_, err := conteinermanager.RunPythonTestsContainer(containerTest)
 			if err != nil {
 				msg := fmt.Sprintf("Ошибка запуска Python-тестов: %v\n", err)
@@ -146,7 +148,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 				checkerResult.Comment = msg
 				return checkerResult, err
 			}
-		} else if programmingLanguageName == "java" {
+		case "java":
 			_, err := conteinermanager.RunJavaTestsContainer(containerTest)
 			if err != nil {
 				msg := fmt.Sprintf("Ошибка выполнения Java-тестов: %v\n", err)
@@ -154,9 +156,6 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 				return checkerResult, err
 			}
 
-			// if !passed {
-			// 	fmt.Println("Тесты упали — продолжаем обработку результатов")
-			// }
 			if err := conteinermanager.CopyResultsFromJavaContainer(containerTest, resultsFolder); err != nil {
 				msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 				checkerResult.Comment = msg
@@ -175,7 +174,7 @@ func ExecutionSolutionOnSites(siteFolder, resultsFolder, correctResultsFolder, c
 
 		result, err := checker.CheckerWithNames(index, resultsFolder, correctResultsFolder)
 		if err != nil {
-			msg := fmt.Sprintf("Ошибка сравнения:", err)
+			msg := fmt.Sprintf("Ошибка сравнения: %v", err)
 			checkerResult.Comment = msg
 			return checkerResult, err
 		}

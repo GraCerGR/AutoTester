@@ -19,8 +19,3 @@ type Attempt struct {
 	ProgrammingLanguageName string
 	TestingVerdict          TestVerdict
 }
-
-type programmingLanguage struct {
-	id   uuid.UUID
-	name string
-}

@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 func RunCmd(name string, args ...string) error {
@@ -123,21 +122,6 @@ func DockerBuild(imageTag string, dockerfileName string, contextPath string) err
 	}
 
 	fmt.Println("Образ успешно построен:", imageTag)
-	return nil
-}
-
-func dockerRun(imageTag, name string, hostPort int) error {
-	_ = exec.Command("docker", "rm", "-f", name).Run()
-
-	portMapping := fmt.Sprintf("%d:80", hostPort)
-	cmd := exec.Command("docker", "run", "-d", "--name", name, "-p", portMapping, imageTag)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	time.Sleep(500 * time.Millisecond)
 	return nil
 }
 
