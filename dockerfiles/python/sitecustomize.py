@@ -4,6 +4,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 # Берём адрес Selenium Hub из переменных окружения
 SELENIUM_HUB = os.environ.get("SELENIUM_HUB")
+SESSION_NAME = os.environ.get("SESSION_NAME")
 
 if SELENIUM_HUB:
     # Сохраняем оригинальный класс, если понадобится
@@ -18,6 +19,9 @@ if SELENIUM_HUB:
             #options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--window-size=1280,800")
             
+            if SESSION_NAME:
+                options.set_capability("se:name", SESSION_NAME)
+                  
             # Передаём в Remote
             super().__init__(command_executor=SELENIUM_HUB, options=options, *args, **kwargs)
 

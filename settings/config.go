@@ -4,16 +4,17 @@ import "time"
 
 // Redis
 const (
-	RedisAddr = "localhost:6379"
-	RedisPassword = "test1234"
-	RedisDB = 0
+	RedisAddr       = "localhost:6379"
+	RedisPassword   = "test1234"
+	RedisDB         = 0
 	RedisMaxRetries = 5
-	RedisTimeout = 5 * time.Second
-	DialTimeout = 30 * time.Second
+	RedisTimeout    = 5 * time.Second
+	DialTimeout     = 30 * time.Second
 )
 
-//Timeout
-const ExecutionTimeout = 15 * time.Minute
+//Timeouts
+const ExecutionTimeout = 15 * time.Second
+const TestTimeout = 10 * time.Second // Пока не использую
 
 // Database
 const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"

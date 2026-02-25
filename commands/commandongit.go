@@ -3,6 +3,7 @@ package commands
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 	"strings"
 )
 
-func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
+func DownloadFromGit(ctx context.Context, repoURL, branch, subDir, targetDir, token string) error {
 	if repoURL == "" {
 		return fmt.Errorf("RepoURL is required")
 	}
@@ -29,7 +30,7 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 
 	fmt.Println("Загрузка репозитория:", zipURL)
 
-	req, err := http.NewRequest("GET", zipURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", zipURL, nil)
 	if err != nil {
 		return err
 	}
@@ -42,6 +43,9 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 	resp, err := client.Do(req)
 
 	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -68,6 +72,13 @@ func DownloadFromGit(repoURL, branch, subDir, targetDir, token string) error {
 	var root string
 
 	for _, f := range reader.File {
+		
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		if root == "" {
 			root = strings.Split(f.Name, "/")[0]
 		}

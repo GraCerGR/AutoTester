@@ -14,23 +14,22 @@ import (
 func Runner() (context.Context, *redis.Client, error) {
 
 	// ---- Runner ----
-
+	ctx := context.Background()
 	//Запуск компоуза с гридом, реддисом и контейнеров с сайтами
-	if err := dockercompose.StartCompose("./dockercompose"); err != nil {
+	if err := dockercompose.StartCompose(ctx, "./dockercompose"); err != nil {
 		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 		return nil, nil, err
 	}
 
 	//Сборка образов для тестовых контейнеров
 	for _, stack := range settings.Stacks {
-		if err := conteinermanager.DockerBuild(settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
+		if err := conteinermanager.DockerBuild(ctx, settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
 			fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 			return nil, nil, err
 		}
 	}
 
 	//Редис
-	ctx := context.Background()
 	redisClient, err := redisClientStart()
 	if err != nil {
 		fmt.Printf("Ошибка запуска Redis: %v\n", err)

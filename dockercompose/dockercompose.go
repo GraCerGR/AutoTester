@@ -3,13 +3,14 @@ package dockercompose
 import (
 	"MainApp/conteinermanager"
 	"MainApp/settings"
+	"context"
 	"fmt"
 	"net/http"
 	"path/filepath"
 	"time"
 )
 
-func StartCompose(composeDir string) error {
+func StartCompose(ctx context.Context, composeDir string) error {
 	absDir, err := filepath.Abs(composeDir)
 	if err != nil {
 		return fmt.Errorf("Не удалось получить абсолютный путь: %w", err)
@@ -17,14 +18,14 @@ func StartCompose(composeDir string) error {
 
 	fmt.Println("Запуск контейнеров docker compose")
 
-	if err := conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d"); err != nil {
+	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d"); err != nil {
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 
 	fmt.Println("Ожидание готовности Selenium Hub")
 	if err := WaitForHub(settings.HubWaitTimeout); err != nil {
 		fmt.Println("Hub не стал готов вовремя:")
-		_ = conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
+		_ = conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
 		return fmt.Errorf("Hub не готов: %w", err)
 	}
 
@@ -32,14 +33,14 @@ func StartCompose(composeDir string) error {
 	return nil
 }
 
-func StopCompose(composeDir string) error {
+func StopCompose(ctx context.Context, composeDir string) error {
 	absDir, err := filepath.Abs(composeDir)
 	if err != nil {
 		return fmt.Errorf("не удалось получить абсолютный путь: %w", err)
 	}
 
 	fmt.Println("=== Остановка Selenium Grid ===")
-	if err := conteinermanager.RunCmd("docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
+	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
 		return fmt.Errorf("docker compose down failed: %w", err)
 	}
 

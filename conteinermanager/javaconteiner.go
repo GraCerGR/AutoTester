@@ -1,6 +1,7 @@
 package conteinermanager
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,7 +9,7 @@ import (
 	"strings"
 )
 
-func RunJavaTestsContainer(containerName string) (bool, error) {
+func RunJavaTestsContainer(ctx context.Context, containerName string) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("контейнер %s не запущен: %w", containerName, err)
@@ -19,13 +20,14 @@ func RunJavaTestsContainer(containerName string) (bool, error) {
 		"-u", "seluser",
 		"-w", "/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
+		"-e", "SESSION_NAME="+containerName,
 		containerName,
 		"mvn", "clean", "test",
 	}
 
 	fmt.Printf("Запуск Java тестов: docker %v\n", args)
 
-	passed, err := runCmdAllowFail("docker", args...)
+	passed, err := runCmdAllowFail(ctx, "docker", args...)
 	if err != nil {
 		return false, err
 	}
@@ -38,7 +40,7 @@ func RunJavaTestsContainer(containerName string) (bool, error) {
 	return passed, nil
 }
 
-func SendSiteJavaCustomize(dir, hostFile, containerName string) error {
+func SendSiteJavaCustomize(ctx context.Context, dir, hostFile, containerName string) error {
 	if hostFile == "" {
 		return fmt.Errorf("hostFile must be provided")
 	}
@@ -52,11 +54,11 @@ func SendSiteJavaCustomize(dir, hostFile, containerName string) error {
 	containerDir := "/app/src/test/java/org/selenium/chrome/"
 	dst := fmt.Sprintf("%s:%s%s", containerName, containerDir, hostFile)
 
-	if err := RunCmd("docker", "exec", containerName, "mkdir", "-p", containerDir); err != nil {
+	if err := RunCmd(ctx, "docker", "exec", containerName, "mkdir", "-p", containerDir); err != nil {
 		return fmt.Errorf("не удалось создать директорию в контейнере: %w", err)
 	}
 
-	if err := RunCmd("docker", "cp", hostPath, dst); err != nil {
+	if err := RunCmd(ctx, "docker", "cp", hostPath, dst); err != nil {
 		return fmt.Errorf("ошибка копирования: %w", err)
 	}
 
@@ -64,7 +66,7 @@ func SendSiteJavaCustomize(dir, hostFile, containerName string) error {
 	return nil
 }
 
-func ReplaceTestURLInJavaContainer(containerName, varName, newURL string) error {
+func ReplaceTestURLInJavaContainer(ctx context.Context, containerName, varName, newURL string) error {
 	escapedURL := strings.NewReplacer(
 		`&`, `\&`,
 		`|`, `\|`,
@@ -75,7 +77,7 @@ func ReplaceTestURLInJavaContainer(containerName, varName, newURL string) error 
 	sedExpr := fmt.Sprintf(`s|\(%s\s*=\s*\)".*"|\1"%s"|`, varName, escapedURL)
 
 	if err := RunCmd(
-		"docker", "exec", containerName,
+		ctx, "docker", "exec", containerName,
 		"bash", "-c",
 		fmt.Sprintf(`find /app -name '*.java' -exec sed -i '%s' {} +`, sedExpr),
 	); err != nil {
@@ -188,7 +190,7 @@ func RenameSurefireXML(resultsDir string) error {
 	return nil
 }
 
-func CopyResultsFromJavaContainer(container, hostPath string) error {
+func CopyResultsFromJavaContainer(ctx context.Context, container, hostPath string) error {
 	os.MkdirAll(hostPath, 0755)
 	cmd := exec.Command("docker", "exec", container, "sh", "-c", "ls /app/target/surefire-reports/TEST-*.xml | head -n 1")
 	out, err := cmd.Output()
@@ -203,7 +205,7 @@ func CopyResultsFromJavaContainer(container, hostPath string) error {
 
 	dstFile := filepath.Join(hostPath, "results.xml")
 
-	if err := RunCmd("docker", "cp", fmt.Sprintf("%s:%s", container, srcFile), dstFile); err != nil {
+	if err := RunCmd(ctx, "docker", "cp", fmt.Sprintf("%s:%s", container, srcFile), dstFile); err != nil {
 		return fmt.Errorf("не удалось скопировать файл из контейнера: %w", err)
 	}
 

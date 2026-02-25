@@ -1,13 +1,15 @@
 package conteinermanager
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func RunPythonTestsContainer(containerName string) (bool, error) {
+func RunPythonTestsContainer(ctx context.Context, containerName string) (bool, error) {
+	
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
 	}
@@ -18,13 +20,14 @@ func RunPythonTestsContainer(containerName string) (bool, error) {
 		"-w", "/app",
 		"-e", "PYTHONPATH=/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
+		"-e", "SESSION_NAME="+containerName,
 		containerName,
 		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
 	}
 
 	fmt.Printf("Запуск Python тестов: docker %v\n", args)
 
-	passed, err := runCmdAllowFail("docker", args...)
+	passed, err := runCmdAllowFail(ctx, "docker", args...)
 	if err != nil {
 		return false, err
 	}
@@ -37,7 +40,7 @@ func RunPythonTestsContainer(containerName string) (bool, error) {
 	return passed, nil
 }
 
-func SendSitePythonCustomize(dir, hostFile, containerName string) error {
+func SendSitePythonCustomize(ctx context.Context, dir, hostFile, containerName string) error {
 	if hostFile == "" {
 		return fmt.Errorf("hostFile must be provided")
 	}
@@ -47,7 +50,7 @@ func SendSitePythonCustomize(dir, hostFile, containerName string) error {
 
 	// Копируем в /app контейнера
 	dst := fmt.Sprintf("%s:/app/%s", containerName, hostFile)
-	if err := RunCmd("docker", "cp", filepath.Join(dir, hostFile), dst); err != nil {
+	if err := RunCmd(ctx, "docker", "cp", filepath.Join(dir, hostFile), dst); err != nil {
 		return fmt.Errorf("ошибка копирования: %w", err)
 	}
 
@@ -55,7 +58,7 @@ func SendSitePythonCustomize(dir, hostFile, containerName string) error {
 	return nil
 }
 
-func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) error {
+func ReplaceTestURLInPythonContainer(ctx context.Context, containerName, varName, newURL string) error {
 	escapedURL := strings.NewReplacer(
 		`&`, `\&`,
 		`|`, `\|`,
@@ -66,7 +69,7 @@ func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) erro
 	sedExpr := fmt.Sprintf(`s|^\(%s\s*=\s*\).*|\1"%s"|`, varName, escapedURL)
 
 	if err :=  RunCmd(
-		"docker", "exec", containerName,
+		ctx, "docker", "exec", containerName,
 		"bash", "-c",
 		fmt.Sprintf(`find /app -name '*.py' -exec sed -i '%s' {} +`, sedExpr),
 	); err != nil {
@@ -76,9 +79,9 @@ func ReplaceTestURLInPythonContainer(containerName, varName, newURL string) erro
 	return nil
 }
 
-func CopyResultsFromPythonContainer(container, hostPath string) error {
+func CopyResultsFromPythonContainer(ctx context.Context, container, hostPath string) error {
 	os.MkdirAll(hostPath, 0755)
-	return RunCmd("docker", "cp",
+	return RunCmd(ctx, "docker", "cp",
 		container+":/app/results/results.xml",
 		filepath.Join(hostPath, "results.xml"),
 	)

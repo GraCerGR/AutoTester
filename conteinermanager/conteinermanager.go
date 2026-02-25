@@ -3,6 +3,7 @@ package conteinermanager
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,10 +11,10 @@ import (
 	"path/filepath"
 )
 
-func RunCmd(name string, args ...string) error {
+func RunCmd(ctx context.Context, name string, args ...string) error {
 	fmt.Printf("[CMD] Выполнение: %s %v\n", name, args)
 
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -25,6 +26,10 @@ func RunCmd(name string, args ...string) error {
 	go stream(stdout, "[OUT]")
 	go stream(stderr, "[ERR]")
 
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("Ошибка выполнения команды: %w", err)
 	}
@@ -33,10 +38,10 @@ func RunCmd(name string, args ...string) error {
 	return nil
 }
 
-func runCmdAllowFail(name string, args ...string) (bool, error) {
+func runCmdAllowFail(ctx context.Context, name string, args ...string) (bool, error) {
 	fmt.Printf("[CMD] Выполнение: %s %v\n", name, args)
 
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(ctx, name, args...)
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -45,10 +50,17 @@ func runCmdAllowFail(name string, args ...string) (bool, error) {
 		return false, fmt.Errorf("Ошибка запуска команды: %w", err)
 	}
 
-	go stream(stdout, "[OUT]")
-	go stream(stderr, "[ERR]")
+	go func() { io.Copy(os.Stdout, stdout) }()
+	go func() { io.Copy(os.Stderr, stderr) }()
+
+	//go stream(stdout, "[OUT]")
+	//go stream(stderr, "[ERR]")
 
 	err := cmd.Wait()
+
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
 
 	if err == nil {
 		fmt.Println("[OK] (ошибка разрешена)")
@@ -84,14 +96,14 @@ func checkContainerRunning(containerName string) (bool, error) {
 
 	if len(bytes.TrimSpace(out)) == 0 {
 		return false, fmt.Errorf(
-			"Контейнер %s не запущен. Поднимите Selenium Hub и стартуйте контейнер перед выполнением тестов",
+			"Контейнер %s не запущен",
 			containerName,
 		)
 	}
 	return true, nil
 }
 
-func DockerBuild(imageTag string, dockerfileName string, contextPath string) error {
+func DockerBuild(ctx context.Context, imageTag string, dockerfileName string, contextPath string) error {
 	fmt.Printf("Проверка и сборка образа: %s\n", imageTag)
 
 	cmdCheck := exec.Command("docker", "images", "-q", imageTag)
@@ -112,7 +124,7 @@ func DockerBuild(imageTag string, dockerfileName string, contextPath string) err
 		return fmt.Errorf("Не удалось получить абсолютный путь: %w", err)
 	}
 
-	err = RunCmd("docker", "build",
+	err = RunCmd(ctx, "docker", "build",
 		"-t", imageTag+":latest",
 		"-f", dockerfileName,
 		buildDir,
@@ -125,21 +137,22 @@ func DockerBuild(imageTag string, dockerfileName string, contextPath string) err
 	return nil
 }
 
-func RunTestContainer(containerName string, imageTag string) error {
-	return RunCmd("docker", "run", "-d",
+func RunTestContainer(ctx context.Context, containerName string, imageTag string) error {
+	return RunCmd(ctx, "docker", "run", "-d",
 		"--name", containerName,
 		"--network", "tests-net",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
+		"-e", "SESSION_NAME="+containerName,
 		imageTag+":latest",
 		"sleep", "infinity",
 	)
 }
 
-func RemoveTestContainer(containerName string) error {
-	return RunCmd("docker", "rm", "-f", containerName)
+func RemoveTestContainer(ctx context.Context, containerName string) error {
+	return RunCmd(ctx, "docker", "rm", "-f", containerName)
 }
 
-func SendProjectToImage(contextDir, containerName string, site bool) error {
+func SendProjectToImage(ctx context.Context, contextDir, containerName string, site bool) error {
 	// Валидация базовых параметров
 	if contextDir == "" {
 		return fmt.Errorf("contextDir must be provided")
@@ -169,16 +182,16 @@ func SendProjectToImage(contextDir, containerName string, site bool) error {
 		dest = fmt.Sprintf("%s:/usr/share/nginx/html/", containerName)
 	}
 
-	if err := RunCmd("docker", "cp", hostSrc, dest); err != nil {
+	if err := RunCmd(ctx, "docker", "cp", hostSrc, dest); err != nil {
 		return fmt.Errorf("ошибка копирования проекта в контейнер %s: %w", containerName, err)
 	}
 
 	if site {
-		if err := RunCmd("docker", "exec", "-u", "root", containerName, "chown", "-R", "nginx:nginx", "/usr/share/nginx/html"); err != nil {
+		if err := RunCmd(ctx, "docker", "exec", "-u", "root", containerName, "chown", "-R", "nginx:nginx", "/usr/share/nginx/html"); err != nil {
 			return fmt.Errorf("ошибка установки прав в контейнере: %w", err)
 		}
 	} else {
-		if err := RunCmd("docker", "exec", "-u", "root", containerName, "chown", "-R", "seluser:seluser", "/app"); err != nil {
+		if err := RunCmd(ctx, "docker", "exec", "-u", "root", containerName, "chown", "-R", "seluser:seluser", "/app"); err != nil {
 			return fmt.Errorf("ошибка установки прав в контейнере: %w", err)
 		}
 
@@ -187,7 +200,7 @@ func SendProjectToImage(contextDir, containerName string, site bool) error {
 	return nil
 }
 
-func RemoveProjectFromContainer(containerName string, site bool) error {
+func RemoveProjectFromContainer(ctx context.Context, containerName string, site bool) error {
 	if containerName == "" {
 		return fmt.Errorf("containerName must be provided")
 	}
@@ -223,7 +236,7 @@ func RemoveProjectFromContainer(containerName string, site bool) error {
 		rmCmd,
 	}
 
-	if err := RunCmd("docker", args...); err != nil {
+	if err := RunCmd(ctx, "docker", args...); err != nil {
 		return fmt.Errorf("Ошибка удаления проекта в контейнере %s: %w", containerName, err)
 	}
 
