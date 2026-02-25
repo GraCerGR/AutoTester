@@ -6,11 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateUniqueFolder() string {
+func GenerateStringId() string {
 
 	//now := time.Now()
 	//timeStr := now.Format("2006-01-02_15-04-05")
 	
-	folderName := fmt.Sprintf("%s", uuid.New())
-	return folderName
+	id := fmt.Sprintf("%s", uuid.New())
+	return id
 }

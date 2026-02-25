@@ -26,3 +26,21 @@ var TestVerdictEnum = struct {
 	WrongLength: verdictWrongLength,
 	Timeout:     verdictTimeout,
 }
+
+type KV struct {
+	Key   string
+	Value string
+}
+
+type CheckerTest struct {
+	Expected       []KV
+	Actual         []KV
+	TestingVerdict TestVerdict
+	Comment        string
+}
+
+type AllTestsInChecker struct {
+	AllTests       []CheckerTest
+	TestingVerdict TestVerdict
+	Comment        string
+}

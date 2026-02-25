@@ -29,7 +29,7 @@ func RunCmd(name string, args ...string) error {
 		return fmt.Errorf("Ошибка выполнения команды: %w", err)
 	}
 
-	fmt.Println("[OK] УСПЕХ")
+	fmt.Println("[OK]")
 	return nil
 }
 
@@ -51,12 +51,12 @@ func runCmdAllowFail(name string, args ...string) (bool, error) {
 	err := cmd.Wait()
 
 	if err == nil {
-		fmt.Println("[OK] УСПЕХ (ошибка разрешена)")
+		fmt.Println("[OK] (ошибка разрешена)")
 		return true, nil
 	}
 
 	if _, ok := err.(*exec.ExitError); ok {
-		fmt.Println("[OK] УСПЕХ (ошибка разрешена):", err)
+		fmt.Println("[OK] (ошибка разрешена):", err)
 		return false, nil
 	}
 

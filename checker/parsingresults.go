@@ -1,7 +1,6 @@
 package checker
 
 import (
-	"MainApp/classes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -111,20 +110,3 @@ func changeExtToJSON(path string, index int) string {
 	return path[:len(path)-len(ext)] + "_" + strconv.Itoa(index) + ".json"
 }
 
-type kv struct {
-	Key   string
-	Value string
-}
-
-type checkerTest struct {
-	Expected       []kv
-	Actual         []kv
-	TestingVerdict classes.TestVerdict
-	Comment        string
-}
-
-type AllTestsInChecker struct {
-	AllTests       []checkerTest
-	TestingVerdict classes.TestVerdict
-	Comment        string
-}

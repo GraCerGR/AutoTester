@@ -9,22 +9,22 @@ import (
 	"strconv"
 )
 
-func CheckerWithSequence(index int, resultsDir string, standartDir string) (checkerTest, error) {
+func CheckerWithSequence(index int, resultsDir string, standartDir string) (classes.CheckerTest, error) {
 
 	resultsFile := filepath.Join(resultsDir, "results_"+strconv.Itoa(index)+".json")
 	expectedFile := filepath.Join(standartDir, "results_"+strconv.Itoa(index)+".json")
 
 	actual, err := loadJSONMapWithSequence(resultsFile)
 	if err != nil {
-		return checkerTest{}, fmt.Errorf("ошибка чтения фактического result-файла: %v", err)
+		return classes.CheckerTest{}, fmt.Errorf("ошибка чтения фактического result-файла: %v", err)
 	}
 
 	expected, err := loadJSONMapWithSequence(expectedFile)
 	if err != nil {
-		return checkerTest{}, fmt.Errorf("ошибка чтения эталонного result-файла: %v", err)
+		return classes.CheckerTest{}, fmt.Errorf("ошибка чтения эталонного result-файла: %v", err)
 	}
 
-	var cd checkerTest
+	var cd classes.CheckerTest
 	cd.Expected = expected
 	cd.Actual = actual
 	cd.TestingVerdict = classes.TestVerdictEnum.Empty
@@ -81,7 +81,7 @@ func CheckerWithSequence(index int, resultsDir string, standartDir string) (chec
 	return cd, nil
 }
 
-func loadJSONMapWithSequence(path string) ([]kv, error) {
+func loadJSONMapWithSequence(path string) ([]classes.KV, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -99,7 +99,7 @@ func loadJSONMapWithSequence(path string) ([]kv, error) {
 		return nil, fmt.Errorf("ожидается JSON-объект в файле %s", path)
 	}
 
-	var pairs []kv
+	var pairs []classes.KV
 
 	for dec.More() {
 
@@ -119,9 +119,9 @@ func loadJSONMapWithSequence(path string) ([]kv, error) {
 
 		var sval string
 		if err := json.Unmarshal(raw, &sval); err == nil {
-			pairs = append(pairs, kv{Key: key, Value: sval})
+			pairs = append(pairs, classes.KV{Key: key, Value: sval})
 		} else {
-			pairs = append(pairs, kv{Key: key, Value: string(raw)})
+			pairs = append(pairs, classes.KV{Key: key, Value: string(raw)})
 		}
 	}
 

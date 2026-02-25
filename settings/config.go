@@ -12,6 +12,9 @@ const (
 	DialTimeout = 30 * time.Second
 )
 
+//Timeout
+const ExecutionTimeout = 15 * time.Minute
+
 // Database
 const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
 

@@ -9,22 +9,22 @@ import (
 	"strconv"
 )
 
-func CheckerWithNames(index int, resultsDir string, standartDir string) (checkerTest, error) {
+func CheckerWithNames(index int, resultsDir string, standartDir string) (classes.CheckerTest, error) {
 
 	resultsFile := filepath.Join(resultsDir, "results_"+strconv.Itoa(index)+".json")
 	expectedFile := filepath.Join(standartDir, "results_"+strconv.Itoa(index)+".json")
 
 	actual, err := loadJSONMapWithNames(resultsFile)
 	if err != nil {
-		return checkerTest{}, fmt.Errorf("ошибка чтения фактического result-файла: %v", err)
+		return classes.CheckerTest{}, fmt.Errorf("ошибка чтения фактического result-файла: %v", err)
 	}
 
 	expected, err := loadJSONMapWithNames(expectedFile)
 	if err != nil {
-		return checkerTest{}, fmt.Errorf("ошибка чтения эталонного result-файла: %v", err)
+		return classes.CheckerTest{}, fmt.Errorf("ошибка чтения эталонного result-файла: %v", err)
 	}
 
-	var cd checkerTest
+	var cd classes.CheckerTest
 
 	cd.Expected = formMapToKV(expected)
 	cd.Actual = formMapToKV(actual)
@@ -97,11 +97,11 @@ func loadJSONMapWithNames(path string) (map[string]string, error) {
 	return data, nil
 }
 
-func formMapToKV(m map[string]string) []kv {
-	result := make([]kv, 0, len(m))
+func formMapToKV(m map[string]string) []classes.KV {
+	result := make([]classes.KV, 0, len(m))
 
 	for k, v := range m {
-		result = append(result, kv{
+		result = append(result, classes.KV{
 			Key:   k,
 			Value: v,
 		})

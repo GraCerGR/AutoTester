@@ -64,7 +64,6 @@ func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ct
 func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classes.Attempt, error) {
 	var a classes.Attempt
 
-	// под твой текущий struct (id, created_at, … programming_language_id/name, verdicts)
 	row := pool.QueryRow(ctx, `
 		SELECT
 			id,
