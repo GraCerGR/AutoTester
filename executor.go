@@ -267,7 +267,7 @@ func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestNam
 
 	ClearAllContainers(ctx, containerTestName, containerSiteName)
 
-	if err := selenium.KillSessionByName(ctx, "http://localhost:4444", containerTestName); err != nil {
+	if err := selenium.KillSessionByName(ctx, settings.HubURL, containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления Selenium session: %v\n", err)
 	}
 
