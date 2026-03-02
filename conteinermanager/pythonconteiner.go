@@ -9,7 +9,7 @@ import (
 )
 
 func RunPythonTestsContainer(ctx context.Context, containerName string) (bool, error) {
-	
+
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
 	}
@@ -20,7 +20,7 @@ func RunPythonTestsContainer(ctx context.Context, containerName string) (bool, e
 		"-w", "/app",
 		"-e", "PYTHONPATH=/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
-		"-e", "SESSION_NAME="+containerName,
+		"-e", "SESSION_NAME=" + containerName,
 		containerName,
 		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
 	}
@@ -68,7 +68,7 @@ func ReplaceTestURLInPythonContainer(ctx context.Context, containerName, varName
 	//varName = "...".
 	sedExpr := fmt.Sprintf(`s|^\(%s\s*=\s*\).*|\1"%s"|`, varName, escapedURL)
 
-	if err :=  RunCmd(
+	if err := RunCmd(
 		ctx, "docker", "exec", containerName,
 		"bash", "-c",
 		fmt.Sprintf(`find /app -name '*.py' -exec sed -i '%s' {} +`, sedExpr),

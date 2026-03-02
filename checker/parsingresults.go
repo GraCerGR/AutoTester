@@ -109,4 +109,3 @@ func changeExtToJSON(path string, index int) string {
 	}
 	return path[:len(path)-len(ext)] + "_" + strconv.Itoa(index) + ".json"
 }
-

@@ -2,7 +2,10 @@
 FROM debian:bookworm-slim
 USER root
 
-# Java
+WORKDIR /tmp
+COPY dockerfiles/java/pom.xml /tmp/pom.xml
+
+# Java + Maven
 RUN apt-get update && \
     apt-get install -y openjdk-17-jdk maven git && \
     rm -rf /var/lib/apt/lists/*
@@ -13,5 +16,12 @@ WORKDIR /app
 
 RUN mkdir -p /app && chown -R seluser:seluser /app
 USER seluser
+
+WORKDIR /home/seluser
+
+COPY --chown=seluser:seluser dockerfiles/java/pom.xml ./pom.xml
+RUN mvn -B dependency:go-offline
+
+WORKDIR /app
 
 CMD ["sleep", "infinity"]

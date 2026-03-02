@@ -9,6 +9,8 @@ const (
 	verdictEmpty       TestVerdict = ""
 	verdictWrongLength TestVerdict = "WRONG_LENGTH"
 	verdictTimeout     TestVerdict = "TIMEOUT"
+	verdictFailLaunchTests TestVerdict = "FAIL_LAUNCH_TESTS"
+	verdictCheckerError TestVerdict = "CHECKER_ERROR"
 )
 
 var TestVerdictEnum = struct {
@@ -18,6 +20,8 @@ var TestVerdictEnum = struct {
 	Empty       TestVerdict
 	WrongLength TestVerdict
 	Timeout     TestVerdict
+	FailLaunchTests TestVerdict
+	CheckerError TestVerdict
 }{
 	Ok:          verdictOk,
 	Fail:        verdictFail,
@@ -25,6 +29,8 @@ var TestVerdictEnum = struct {
 	WrongAnswer: verdictWrongAnswer,
 	WrongLength: verdictWrongLength,
 	Timeout:     verdictTimeout,
+	FailLaunchTests: verdictFailLaunchTests,
+	CheckerError: verdictCheckerError,
 }
 
 type KV struct {
