@@ -71,10 +71,7 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 			git_student_url,
 			git_site_url,
 			variable_with_url,
-			task_id,
-			task_name,
-			programming_language_name,
-			testing_verdict
+			programming_language_name
 		FROM attempt
 		WHERE id = $1
 	`, id)
@@ -85,10 +82,7 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 		&a.GitStudentURL,
 		&a.GitSiteURL,
 		&a.VariableWithURL,
-		&a.TaskId,
-		&a.TaskName,
 		&a.ProgrammingLanguageName,
-		&a.TestingVerdict,
 	)
 	return a, err
 }

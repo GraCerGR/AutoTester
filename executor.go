@@ -57,7 +57,7 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containerSiteName)
 
 	//Загрузка решения из гита
-	if err := commands.DownloadFromGit(ctx, attempt.GitStudentURL, "main", "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.GitStudentURL, attempt.GitStudentBranch, "", "Solutions/Gits/"+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки решения с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
@@ -100,7 +100,7 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	}
 
 	//Загрузка сайта из гита
-	if err := commands.DownloadFromGit(ctx, attempt.GitSiteURL, "main", "", "Sites/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.GitSiteURL, attempt.GitSiteBranch, "", "Sites/Gits/"+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки сайта с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}

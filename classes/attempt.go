@@ -12,11 +12,8 @@ type Attempt struct {
 	CreatedAt               time.Time
 	GitStudentURL           string
 	GitStudentBranch        string
-	GitSiteURL              string // Получаю с отдельной БД (из TaskBank)
-	GitSiteBranch           string // Получаю с отдельной БД (из TaskBank)
+	GitSiteURL              string
+	GitSiteBranch           string
 	VariableWithURL         string
-	TaskId                  uuid.UUID
-	TaskName                string
 	ProgrammingLanguageName string
-	TestingVerdict          TestVerdict // Как будто и не надо
 }

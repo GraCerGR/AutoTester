@@ -14,7 +14,7 @@ const (
 
 //Timeouts
 const ExecutionTimeout = 15 * time.Minute
-const TestTimeout = 5 * time.Second
+const TestTimeout = 10 * time.Minute
 
 // Database
 const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
