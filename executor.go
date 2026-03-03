@@ -155,7 +155,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 	for _, index := range dirs {
 		path := dirMap[index]
 		var checkerOneResult classes.CheckerTest
-		checkerOneResult.Number = index
+		checkerOneResult.Id = index
 
 		checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
 		lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]

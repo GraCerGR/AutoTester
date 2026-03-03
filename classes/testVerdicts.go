@@ -39,7 +39,7 @@ type KV struct {
 }
 
 type CheckerTest struct {
-	Number         int
+	Id         int
 	Expected       []KV
 	Actual         []KV
 	TestingVerdict TestVerdict
