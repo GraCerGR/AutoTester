@@ -18,12 +18,20 @@ x-testpython-defaults: &testpython_defaults
   build:
     context: ..
     dockerfile: dockerfiles/python/DockerfilePython.base
+  mem_limit: 1g
+  cpus: 1.0
+  shm_size: 1g
+  pids_limit: 300
 
 x-testjava-defaults: &testjava_defaults
   image: testimagejava:latest
   build:
     context: ..
     dockerfile: dockerfiles/java/DockerfileJava.base
+  mem_limit: 1g
+  cpus: 1.0
+  shm_size: 1g
+  pids_limit: 300
 
 
 services:
