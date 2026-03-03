@@ -20,9 +20,3 @@ type Attempt struct {
 	ProgrammingLanguageName string
 	TestingVerdict          TestVerdict // Как будто и не надо
 }
-
-//Что должен возвращать Executor
-type AttemptResponse struct {
-	Id                      uuid.UUID   `json:"id"`
-	Results                 AllTestsInChecker `json:"results"`
-}

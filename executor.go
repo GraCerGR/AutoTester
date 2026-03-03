@@ -154,42 +154,61 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 
 	for _, index := range dirs {
 		path := dirMap[index]
+		var checkerOneResult classes.CheckerTest
+		checkerOneResult.Number = index
+
+		checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
+		lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]
 
 		if err := conteinermanager.SendProjectToImage(ctx, path, containerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
-			checkerAllResults.Comment = msg
+			lastTest.Comment = msg
+			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
+
+			checkerAllResults.Comment = lastTest.Comment
+			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
 			return checkerAllResults, err
 		}
 
 		if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containerSite, programmingLanguageName, resultsFolder); err != nil {
 			fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
-			checkerAllResults.Comment = launchResult.Comment
-			checkerAllResults.TestingVerdict = launchResult.TestingVerdict
+			lastTest.Comment = launchResult.Comment
+			lastTest.TestingVerdict = launchResult.TestingVerdict
+
+			checkerAllResults.Comment = lastTest.Comment
+			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
 			return checkerAllResults, err
 		}
 
 		if checkerOneResult, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
 			fmt.Printf("Ошибка при проверке результатов: %v\n", err)
-			checkerAllResults.Comment = checkerOneResult.Comment
-			checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+			lastTest.Comment = checkerOneResult.Comment
+			lastTest.TestingVerdict = checkerOneResult.TestingVerdict
+
+			checkerAllResults.Comment = lastTest.Comment
+			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
 			return checkerAllResults, err
 		} else {
-			checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
+			lastTest.TestingVerdict = checkerOneResult.TestingVerdict
+			lastTest.Comment = checkerOneResult.Comment
+			lastTest.Expected = checkerOneResult.Expected
+			lastTest.Actual = checkerOneResult.Actual
 		}
 
 		//Удаляем файлы сайта в сайтовом контейнере
 		if err := conteinermanager.RemoveProjectFromContainer(ctx, containerSite, true); err != nil {
 			msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
-			checkerAllResults.Comment = msg
-			checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Fail
+			lastTest.Comment = msg
+			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
+
+			checkerAllResults.Comment = lastTest.Comment
+			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
 			return checkerAllResults, err
 		}
 
-		lastVerdict := checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1].TestingVerdict
-		lastComment := checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1].Comment
-		if lastVerdict != classes.TestVerdictEnum.Ok {
-			checkerAllResults.TestingVerdict = lastVerdict
-			checkerAllResults.Comment = lastComment
+		if lastTest.TestingVerdict != classes.TestVerdictEnum.Ok {
+			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
+			checkerAllResults.Comment = lastTest.Comment
 			break
 		} else {
 			checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
@@ -204,6 +223,12 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 
 	ctx, cancel := context.WithTimeout(parentCtx, settings.TestTimeout)
 	defer cancel()
+
+	// timeouts := []time.Duration{
+	// 	10 * time.Second,
+	// 	3 * time.Second,
+	// }
+	// ctx, cancel := context.WithTimeout(parentCtx, timeouts[rand.Intn(len(timeouts))])
 
 	switch programmingLanguageName {
 	case "python":
