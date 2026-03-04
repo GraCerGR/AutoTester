@@ -25,7 +25,7 @@ func StartQueueWorker(ctx context.Context, rdb *redis.Client) {
 					return
 				default:
 					// ждём элемент из очереди
-					data, err := rdb.BLPop(ctx, 1*time.Second, key).Result() // блокируемся 1 сек
+					data, err := rdb.BLPop(ctx, 1*time.Second, key).Result()
 					if err != nil {
 						continue
 					}
@@ -73,7 +73,6 @@ func WaitForFreeContainer(ctx context.Context, rdb *redis.Client, containers []s
 			return name, nil
 		}
 		fmt.Printf("Нет свободных контейнеров. Ждём.\n")
-		// ждем 1 секунду и пробуем снова
 		time.Sleep(1 * time.Second)
 	}
 }
