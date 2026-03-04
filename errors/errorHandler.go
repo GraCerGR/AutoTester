@@ -5,9 +5,10 @@ import (
 	"fmt"
 )
 
-func TimeoutResult() classes.AllTestsInChecker {
+func TimeoutResult( allTests ...classes.CheckerTest) classes.AllTestsInChecker {
 	fmt.Println("Превышено время выполнения")
 	return classes.AllTestsInChecker{
+		AllTests: allTests,
 		TestingVerdict: classes.TestVerdictEnum.Timeout,
 		Comment:        "Превышено время выполнения",
 	}
