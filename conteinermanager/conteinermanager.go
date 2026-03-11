@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func RunCmd(ctx context.Context, name string, args ...string) error {
@@ -36,6 +38,37 @@ func RunCmd(ctx context.Context, name string, args ...string) error {
 
 	fmt.Println("[OK]")
 	return nil
+}
+
+func RunCmdOutput(ctx context.Context, name string, args ...string) (string, error) {
+	fmt.Printf("[CMD] Выполнение: %s %v\n", name, args)
+
+	cmd := exec.CommandContext(ctx, name, args...)
+
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("Ошибка запуска команды: %w", err)
+	}
+
+	var buf bytes.Buffer
+	go streamCopy(stdout, &buf)
+	go streamCopy(stderr, &buf)
+
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return buf.String(), fmt.Errorf("Ошибка выполнения команды: %w", err)
+	}
+
+	return buf.String(), nil
+}
+
+func streamCopy(r io.Reader, buf *bytes.Buffer) {
+	io.Copy(io.MultiWriter(buf, os.Stdout), r)
 }
 
 func runCmdAllowFail(ctx context.Context, name string, args ...string) (bool, error) {
@@ -196,6 +229,11 @@ func SendProjectToImage(ctx context.Context, contextDir, containerName string, s
 		}
 
 	}
+	if site {
+		fmt.Println("Сайт успешно отправлен в контейнер", containerName)
+	} else {
+		fmt.Println("Решение успешно отправлено в контейнер", containerName)
+	}
 
 	return nil
 }
@@ -241,5 +279,40 @@ func RemoveProjectFromContainer(ctx context.Context, containerName string, site 
 	}
 
 	fmt.Println("Файлы проекта успешно удалены из контейнера", containerName)
+	return nil
+}
+
+func AddSiteRedirectToContainer(ctx context.Context, testContainer, testURL, targetContainer, network string) error {
+
+	u, err := url.Parse(testURL)
+	if err != nil {
+		return fmt.Errorf("не удалось распарсить %s: %w", testURL, err)
+	}
+	host := u.Hostname()
+
+	out, err := RunCmdOutput(ctx, "docker", "inspect", "-f", fmt.Sprintf("{{index .NetworkSettings.Networks \"%s\" \"IPAddress\"}}", network), targetContainer)
+	if err != nil {
+		return fmt.Errorf("не удалось получить IP адрес контейнера %s: %w", targetContainer, err)
+	}
+
+	ip := strings.TrimSpace(out)
+	if ip == "" {
+		return fmt.Errorf("IP контейнера %s пустой", targetContainer)
+	}
+
+	args := []string{
+		"exec",
+		"-u", "root",
+		testContainer,
+		"bash", "-c",
+		fmt.Sprintf("echo '%s %s' >> /etc/hosts", ip, host),
+	}
+
+	if err := RunCmd(ctx, "docker", args...); err != nil {
+		return fmt.Errorf("Не удалось добавить перенаправление: %w", err)
+	}
+
+	fmt.Printf("Перенаправление %s (%s) -> %s успешно добавлено в контейнер\n", testURL, ip, targetContainer)
+
 	return nil
 }

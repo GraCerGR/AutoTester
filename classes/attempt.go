@@ -10,10 +10,41 @@ import (
 type Attempt struct {
 	Id                      uuid.UUID
 	CreatedAt               time.Time
-	GitStudentURL           string
-	GitStudentBranch        string
-	GitSiteURL              string
-	GitSiteBranch           string
+	SolutionGit             GitInfo
+	SiteGit                 GitInfo
 	VariableWithURL         string
 	ProgrammingLanguageName string
+	Timeouts                Timeouts
+	Threads                 Threads
+	ShutdownCondition       ShutdownCondition
+}
+
+type GitInfo struct {
+	URL    string
+	Branch *string
+}
+
+type Timeouts struct {
+	Execution time.Duration
+	Test      time.Duration
+}
+
+type Threads struct {
+	Number int
+	Reuse  bool
+}
+
+type ShutdownCondition string
+
+const (
+	untilTheFirstError ShutdownCondition = "until_the_first_error"
+	allTests           ShutdownCondition = "all_tests"
+)
+
+var ShutdownConditionEnum = struct {
+	UntilTheFirstError ShutdownCondition
+	AllTests           ShutdownCondition
+}{
+	UntilTheFirstError: untilTheFirstError,
+	AllTests:           allTests,
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func RunPythonTestsContainer(ctx context.Context, containerName string) (bool, error) {
+func RunPythonTestsContainer(ctx context.Context, containerName, testURL string) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
@@ -21,6 +21,7 @@ func RunPythonTestsContainer(ctx context.Context, containerName string) (bool, e
 		"-e", "PYTHONPATH=/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
 		"-e", "SESSION_NAME=" + containerName,
+		"-e", fmt.Sprintf("TEST_URL=%s", testURL),
 		containerName,
 		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
 	}
@@ -65,7 +66,6 @@ func ReplaceTestURLInPythonContainer(ctx context.Context, containerName, varName
 		`\`, `\\`,
 	).Replace(newURL)
 
-	//varName = "...".
 	sedExpr := fmt.Sprintf(`s|^\(%s\s*=\s*\).*|\1"%s"|`, varName, escapedURL)
 
 	if err := RunCmd(
@@ -74,6 +74,36 @@ func ReplaceTestURLInPythonContainer(ctx context.Context, containerName, varName
 		fmt.Sprintf(`find /app -name '*.py' -exec sed -i '%s' {} +`, sedExpr),
 	); err != nil {
 		return fmt.Errorf("ошибка замены URL: %w", err)
+	}
+
+	return nil
+}
+
+func AddTestURLImportToPythonFiles(ctx context.Context, containerName, varName string) error {
+	escapedImport := strings.ReplaceAll("sitecustomize", "/", "\\/")
+	sedExpr := fmt.Sprintf(`1i from %s import %s`, escapedImport, varName)
+
+	cmd := fmt.Sprintf(`find /app -name '*.py' ! -name 'sitecustomize.py' -exec sed -i '%s' {} +`, sedExpr)
+
+	if err := RunCmd(
+		ctx, "docker", "exec", containerName,
+		"bash", "-c", cmd,
+	); err != nil {
+		return fmt.Errorf("Ошибка добавления импорта %s: %w", varName, err)
+	}
+
+	return nil
+}
+
+func CommentPythonVariableInContainer(ctx context.Context, containerName, varName string) error {
+	sedExpr := fmt.Sprintf(`s|^\(\s*%s\s*=.*\)|#\1|`, varName)
+
+	if err := RunCmd(
+		ctx, "docker", "exec", containerName,
+		"bash", "-c",
+		fmt.Sprintf(`find /app -name '*.py' ! -name 'sitecustomize.py' -exec sed -i '%s' {} +`, sedExpr),
+	); err != nil {
+		return fmt.Errorf("Ошибка комментирования переменной %s: %w", varName, err)
 	}
 
 	return nil

@@ -20,9 +20,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Executor(parentCtx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName, containerSiteName string) {
+func Executor(parentCtx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName string, containersSiteName []string) {
 
-	ctx, cancel := context.WithTimeout(parentCtx, settings.ExecutionTimeout)
+	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Execution)
 	defer cancel()
 
 	var checkerResult classes.AllTestsInChecker
@@ -41,23 +41,23 @@ func Executor(parentCtx context.Context, redisClient *redis.Client, attempt clas
 		fmt.Println("Результат проверки:")
 		fmt.Println(string(b))
 
-		Ending(redisClient, attempt, containerTestName, containerSiteName, checkerResult)
+		Ending(redisClient, attempt, containerTestName, containersSiteName, checkerResult)
 	}()
 
-	checkerResult = ExecutorMain(ctx, attempt, containerTestName, containerSiteName)
+	checkerResult = ExecutorMain(ctx, attempt, containerTestName, containersSiteName)
 }
 
-func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestName, containerSiteName string) classes.AllTestsInChecker {
+func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestName string, containersSiteName []string) classes.AllTestsInChecker {
 	result := classes.AllTestsInChecker{}
 
 	if err := ctx.Err(); err != nil {
 		return myerrors.TimeoutResult()
 	}
 
-	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containerSiteName)
+	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containersSiteName)
 
 	//Загрузка решения из гита
-	if err := commands.DownloadFromGit(ctx, attempt.GitStudentURL, attempt.GitStudentBranch, "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.SolutionGit.URL, attempt.SolutionGit.Branch, "", "Solutions/Gits/"+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки решения с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
@@ -71,15 +71,18 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	//Передаём файлы теста в тестовый контейнер
 	if err := conteinermanager.SendProjectToImage(ctx, "Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
 		comment := fmt.Sprintf("Ошибка передачи проекта в контейнер: %v\n", err)
-		result.TestingVerdict = classes.TestVerdictEnum.Fail
 		return myerrors.FailResult(comment)
 	}
 
 	switch attempt.ProgrammingLanguageName {
 	case "python":
-		//Отправляет скрипт перенаправления запросов в хаб селениум грида
-		if err := conteinermanager.ReplaceTestURLInPythonContainer(ctx, containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
+		if err := conteinermanager.AddTestURLImportToPythonFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
 			comment := fmt.Sprintf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
+			return myerrors.FailResult(comment)
+		}
+
+		if err := conteinermanager.CommentPythonVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+			comment := fmt.Sprintf("Ошибка комментирования переменной "+attempt.VariableWithURL+": %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 
@@ -89,10 +92,11 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 		}
 	case "java":
 		//Отправляет скрипт перенаправления запросов в хаб селениум грида
-		if err := conteinermanager.ReplaceTestURLInJavaContainer(ctx, containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
-			comment := fmt.Sprintf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
-			return myerrors.FailResult(comment)
-		}
+		// if err := conteinermanager.ReplaceTestURLInJavaContainer(ctx, containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
+		// 	comment := fmt.Sprintf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
+		// 	return myerrors.FailResult(comment)
+		// }
+
 		if err := conteinermanager.SendSiteJavaCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "ChromeDriver.java", containerTestName); err != nil {
 			comment := fmt.Sprintf("Ошибка отправки ChromeDriver.java: %v\n", err)
 			return myerrors.FailResult(comment)
@@ -100,14 +104,14 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	}
 
 	//Загрузка сайта из гита
-	if err := commands.DownloadFromGit(ctx, attempt.GitSiteURL, attempt.GitSiteBranch, "", "Sites/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.SiteGit.URL, attempt.SiteGit.Branch, "", "Sites/Gits/"+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки сайта с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
 	// Папка потока - генерируется с именем тестового контейнера
 	if checkerAllResults, err := ExecutionSolutionOnSites(ctx, "Sites/Gits/"+containerTestName+"/Sites", "Sites/Gits/"+containerTestName+"/StudentResults",
-		"Sites/Gits/"+containerTestName+"/Results", containerTestName, containerSiteName, attempt.ProgrammingLanguageName); err != nil {
+		"Sites/Gits/"+containerTestName+"/Results", containerTestName, containersSiteName, attempt); err != nil {
 		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
 		return checkerAllResults
 	} else {
@@ -117,7 +121,7 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	return result
 }
 
-func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, correctResultsFolder, containerTest, containerSite, programmingLanguageName string) (classes.AllTestsInChecker, error) {
+func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, correctResultsFolder, containerTest string, containersSite []string, attempt classes.Attempt) (classes.AllTestsInChecker, error) {
 	var checkerAllResults classes.AllTestsInChecker
 
 	entries, err := os.ReadDir(siteFolder)
@@ -160,7 +164,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 		checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
 		lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]
 
-		if err := conteinermanager.SendProjectToImage(ctx, path, containerSite, true); err != nil {
+		if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[index-1], true); err != nil {
 			msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
 			lastTest.Comment = msg
 			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
@@ -170,7 +174,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 			return checkerAllResults, err
 		}
 
-		if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containerSite, programmingLanguageName, resultsFolder); err != nil {
+		if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[index-1], resultsFolder, attempt); err != nil {
 			fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
 			lastTest.Comment = launchResult.Comment
 			lastTest.TestingVerdict = launchResult.TestingVerdict
@@ -196,7 +200,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 		}
 
 		//Удаляем файлы сайта в сайтовом контейнере
-		if err := conteinermanager.RemoveProjectFromContainer(ctx, containerSite, true); err != nil {
+		if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
 			msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
 			lastTest.Comment = msg
 			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
@@ -218,21 +222,16 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 	return checkerAllResults, nil
 }
 
-func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, programmingLanguageName, resultsFolder string) (classes.CheckerTest, error) {
+func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt) (classes.CheckerTest, error) {
 	var launchResult classes.CheckerTest
 
-	ctx, cancel := context.WithTimeout(parentCtx, settings.TestTimeout)
+	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Test)
 	defer cancel()
 
-	// timeouts := []time.Duration{
-	// 	10 * time.Second,
-	// 	3 * time.Second,
-	// }
-	// ctx, cancel := context.WithTimeout(parentCtx, timeouts[rand.Intn(len(timeouts))])
-
-	switch programmingLanguageName {
+	switch attempt.ProgrammingLanguageName {
 	case "python":
-		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest)
+
+		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80")
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -253,6 +252,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 			return launchResult, err
 		}
 	case "java":
+
 		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
@@ -302,18 +302,18 @@ func ClearAllContainers(ctx context.Context, containerTestName, containerSiteNam
 	conteinermanager.RemoveTestContainer(ctx, containerTestName)
 }
 
-func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestName, containerSiteName string, results classes.AllTestsInChecker) {
+func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker) {
 	ctx := context.Background()
 
 	// Отправка результата проверки
 
-	ClearAllContainers(ctx, containerTestName, containerSiteName)
+	ClearAllContainers(ctx, containerTestName, containerSiteName[0])
 
 	if err := selenium.KillSessionByName(ctx, settings.HubURL, containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления Selenium session: %v\n", err)
 	}
 
 	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
-	myredis.SetContainerStatus(ctx, redisClient, containerSiteName, "free")
+	myredis.SetContainerStatus(ctx, redisClient, containerSiteName[0], "free")
 	fmt.Printf("Executor свободен для новых задач\n")
 }

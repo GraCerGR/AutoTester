@@ -68,10 +68,24 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 		SELECT
 			id,
 			created_at,
-			git_student_url,
-			git_site_url,
+
+			solution_git_url,
+			solution_git_branch,
+
+			site_git_url,
+			site_git_branch,
+
 			variable_with_url,
-			programming_language_name
+			programming_language_name,
+
+			timeout_execution,
+			timeout_test,
+
+			threads_number,
+			threads_reuse,
+
+			shutdown_condition
+
 		FROM attempt
 		WHERE id = $1
 	`, id)
@@ -79,10 +93,17 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 	err := row.Scan(
 		&a.Id,
 		&a.CreatedAt,
-		&a.GitStudentURL,
-		&a.GitSiteURL,
+		&a.SolutionGit.URL,
+		&a.SolutionGit.Branch,
+		&a.SiteGit.URL,
+		&a.SiteGit.Branch,
 		&a.VariableWithURL,
 		&a.ProgrammingLanguageName,
+		&a.Timeouts.Execution,
+		&a.Timeouts.Test,
+		&a.Threads.Number,
+		&a.Threads.Reuse,
+		&a.ShutdownCondition,
 	)
 	return a, err
 }

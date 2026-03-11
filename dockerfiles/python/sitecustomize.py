@@ -2,6 +2,10 @@ import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 
+# Переопределяем TEST_URL, если передано через окружение
+TEST_URL = os.environ.get("TEST_URL", "http://localhost:8080")
+__all__ = ["TEST_URL"]
+
 # Берём адрес Selenium Hub из переменных окружения
 SELENIUM_HUB = os.environ.get("SELENIUM_HUB")
 SESSION_NAME = os.environ.get("SESSION_NAME")

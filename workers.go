@@ -40,7 +40,7 @@ func StartQueueWorker(ctx context.Context, rdb *redis.Client) {
 					}
 
 					// Поиск свободного тестового контейнера
-					containerTest, err := WaitForFreeContainer(ctx, rdb, settings.TestContainers, stack)
+					containerTests, err := WaitForFreeContainer(ctx, rdb, settings.TestContainers, stack, 1)
 					if err != nil {
 						fmt.Printf("Не удалось получить свободный контейнер: %v\n", err)
 						_ = rdb.LPush(ctx, key, data[1]).Err()
@@ -49,7 +49,7 @@ func StartQueueWorker(ctx context.Context, rdb *redis.Client) {
 					}
 
 					// Поиск свободного сайтового контейнера
-					containerSite, err := WaitForFreeContainer(ctx, rdb, settings.SiteContainers, "")
+					containerSites, err := WaitForFreeContainer(ctx, rdb, settings.SiteContainers, "", a.Threads.Number)
 					if err != nil {
 						fmt.Printf("Не удалось получить свободный сайт-контейнер: %v\n", err)
 						_ = rdb.LPush(ctx, key, data[1]).Err()
@@ -57,22 +57,29 @@ func StartQueueWorker(ctx context.Context, rdb *redis.Client) {
 						continue
 					}
 
-					myredis.SetContainerStatus(ctx, rdb, containerTest, "busy")
-					myredis.SetContainerStatus(ctx, rdb, containerSite, "busy")
-					go Executor(ctx, rdb, a, containerTest, containerSite)
+					myredis.SetContainerStatus(ctx, rdb, containerTests[0], "busy")
+
+					for _, c := range containerSites {
+						myredis.SetContainerStatus(ctx, rdb, c, "busy")
+					}
+					go Executor(ctx, rdb, a, containerTests[0], containerSites)
 				}
 			}
 		}(stack)
 	}
 }
 
-func WaitForFreeContainer(ctx context.Context, rdb *redis.Client, containers []settings.Container, stack string) (string, error) {
-	for {
+func WaitForFreeContainer(ctx context.Context, rdb *redis.Client, containers []settings.Container, stack string, count int) ([]string, error) {
+
+	var result []string
+
+	for len(result) < count {
 		name, err := myredis.GetFreeContainer(ctx, rdb, containers, stack)
 		if err == nil {
-			return name, nil
+			result = append(result, name)
 		}
 		fmt.Printf("Нет свободных контейнеров. Ждём.\n")
 		time.Sleep(1 * time.Second)
 	}
+	return result, nil
 }
