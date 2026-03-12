@@ -8,14 +8,12 @@ import (
 	myredis "MainApp/redis"
 	"MainApp/selenium"
 	"MainApp/settings"
+	"MainApp/utilizes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
+	"sync"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -124,105 +122,103 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, correctResultsFolder, containerTest string, containersSite []string, attempt classes.Attempt) (classes.AllTestsInChecker, error) {
 	var checkerAllResults classes.AllTestsInChecker
 
-	entries, err := os.ReadDir(siteFolder)
+	dirs, dirMap, err := utilizes.CountingFolder(siteFolder)
 	if err != nil {
-		msg := fmt.Sprintf("Не удалось прочитать каталог %s: %v\n", siteFolder, err)
+		msg := fmt.Sprintf("Ошибка подсчёта папок в %s: %v\n", siteFolder, err)
 		checkerAllResults.Comment = msg
 		checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Fail
 		return checkerAllResults, err
 	}
 
-	var dirs []int
-	dirMap := make(map[int]string)
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		name := e.Name()
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	checkerAllResults.AllTests = make([]classes.CheckerTest, len(dirs))
 
-		match := regexp.MustCompile(`\d+`).FindString(name)
-		if match == "" {
-			continue
-		}
-		n, _ := strconv.Atoi(match)
-		dirs = append(dirs, n)
-		dirMap[n] = filepath.Join(siteFolder, name)
+	for i, index := range dirs {
+
+		wg.Add(1)
+
+		go func(i int, index int) {
+			defer wg.Done()
+
+			path := dirMap[index]
+			var checkerOneResult classes.CheckerTest
+			checkerOneResult.Id = index
+
+			//checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
+			//lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]
+
+			if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[index-1], true); err != nil {
+				msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
+				checkerOneResult.Comment = msg
+				checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
+
+				mu.Lock()
+				checkerAllResults.AllTests[i] = checkerOneResult
+				checkerAllResults.Comment = msg
+				checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+				mu.Unlock()
+
+				return
+			}
+
+			if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[index-1], resultsFolder, attempt, index); err != nil {
+				fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
+				mu.Lock()
+				checkerAllResults.AllTests[i] = launchResult
+				checkerAllResults.Comment = launchResult.Comment
+				checkerAllResults.TestingVerdict = launchResult.TestingVerdict
+				mu.Unlock()
+
+				return
+			}
+
+			mu.Lock()
+			checkerAllResults.AllTests[i] = checkerOneResult
+			mu.Unlock()
+		}(i, index)
+
+		// if checkerOneResult, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
+		// 	fmt.Printf("Ошибка при проверке результатов: %v\n", err)
+		// 	lastTest.Comment = checkerOneResult.Comment
+		// 	lastTest.TestingVerdict = checkerOneResult.TestingVerdict
+
+		// 	checkerAllResults.Comment = lastTest.Comment
+		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
+		// 	return checkerAllResults, err
+		// } else {
+		// 	lastTest.TestingVerdict = checkerOneResult.TestingVerdict
+		// 	lastTest.Comment = checkerOneResult.Comment
+		// 	lastTest.Expected = checkerOneResult.Expected
+		// 	lastTest.Actual = checkerOneResult.Actual
+		// }
+
+		// //Удаляем файлы сайта в сайтовом контейнере
+		// if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
+		// 	msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
+		// 	lastTest.Comment = msg
+		// 	lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
+
+		// 	checkerAllResults.Comment = lastTest.Comment
+		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
+		// 	return checkerAllResults, err
+		// }
+
+		// if lastTest.TestingVerdict != classes.TestVerdictEnum.Ok {
+		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
+		// 	checkerAllResults.Comment = lastTest.Comment
+		// 	break
+		// } else {
+		// 	checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
+		// }
 	}
-
-	if len(dirs) == 0 {
-		msg := "Не найдено подпапок с числовыми именами."
-		checkerAllResults.Comment = msg
-		checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Fail
-		return checkerAllResults, fmt.Errorf("%s", msg)
-	}
-
-	for _, index := range dirs {
-		path := dirMap[index]
-		var checkerOneResult classes.CheckerTest
-		checkerOneResult.Id = index
-
-		checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
-		lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]
-
-		if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[index-1], true); err != nil {
-			msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
-			lastTest.Comment = msg
-			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
-
-			checkerAllResults.Comment = lastTest.Comment
-			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-			return checkerAllResults, err
-		}
-
-		if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[index-1], resultsFolder, attempt); err != nil {
-			fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
-			lastTest.Comment = launchResult.Comment
-			lastTest.TestingVerdict = launchResult.TestingVerdict
-
-			checkerAllResults.Comment = lastTest.Comment
-			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-			return checkerAllResults, err
-		}
-
-		if checkerOneResult, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
-			fmt.Printf("Ошибка при проверке результатов: %v\n", err)
-			lastTest.Comment = checkerOneResult.Comment
-			lastTest.TestingVerdict = checkerOneResult.TestingVerdict
-
-			checkerAllResults.Comment = lastTest.Comment
-			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-			return checkerAllResults, err
-		} else {
-			lastTest.TestingVerdict = checkerOneResult.TestingVerdict
-			lastTest.Comment = checkerOneResult.Comment
-			lastTest.Expected = checkerOneResult.Expected
-			lastTest.Actual = checkerOneResult.Actual
-		}
-
-		//Удаляем файлы сайта в сайтовом контейнере
-		if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
-			msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
-			lastTest.Comment = msg
-			lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
-
-			checkerAllResults.Comment = lastTest.Comment
-			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-			return checkerAllResults, err
-		}
-
-		if lastTest.TestingVerdict != classes.TestVerdictEnum.Ok {
-			checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-			checkerAllResults.Comment = lastTest.Comment
-			break
-		} else {
-			checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
-		}
-	}
+	wg.Wait()
+	// time.Sleep(10 * time.Second)
 
 	return checkerAllResults, nil
 }
 
-func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt) (classes.CheckerTest, error) {
+func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt, index int) (classes.CheckerTest, error) {
 	var launchResult classes.CheckerTest
 
 	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Test)
@@ -231,7 +227,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 	switch attempt.ProgrammingLanguageName {
 	case "python":
 
-		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80")
+		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -245,7 +241,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 			return launchResult, err
 		}
 
-		if err := conteinermanager.CopyResultsFromPythonContainer(ctx, containerTest, resultsFolder); err != nil {
+		if err := conteinermanager.CopyResultsFromPythonContainer(ctx, containerTest, resultsFolder, index); err != nil {
 			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLaunchTests
 			launchResult.Comment = msg
@@ -279,7 +275,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 }
 
 // ---- Отчистка ----
-func ClearAllContainers(ctx context.Context, containerTestName, containerSiteName string) {
+func ClearAllContainers(ctx context.Context, containerTestName string, containerSiteName []string) {
 
 	//Удаляем файлы теста в контейнере
 	if err := conteinermanager.RemoveProjectFromContainer(ctx, containerTestName, false); err != nil {
@@ -287,8 +283,10 @@ func ClearAllContainers(ctx context.Context, containerTestName, containerSiteNam
 	}
 
 	//Удаляем файлы сайта в контейнере
-	if err := conteinermanager.RemoveProjectFromContainer(ctx, containerSiteName, true); err != nil {
-		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
+	for index := range containerSiteName {
+		if err := conteinermanager.RemoveProjectFromContainer(ctx, containerSiteName[index], true); err != nil {
+			fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
+		}
 	}
 
 	//Удаляем файлы сайта и решения с хоста
@@ -307,13 +305,17 @@ func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestNam
 
 	// Отправка результата проверки
 
-	ClearAllContainers(ctx, containerTestName, containerSiteName[0])
+	ClearAllContainers(ctx, containerTestName, containerSiteName)
 
 	if err := selenium.KillSessionByName(ctx, settings.HubURL, containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления Selenium session: %v\n", err)
 	}
 
 	myredis.SetContainerStatus(ctx, redisClient, containerTestName, "free")
-	myredis.SetContainerStatus(ctx, redisClient, containerSiteName[0], "free")
+
+	for index := range containerSiteName {
+		myredis.SetContainerStatus(ctx, redisClient, containerSiteName[index], "free")
+	}
+
 	fmt.Printf("Executor свободен для новых задач\n")
 }

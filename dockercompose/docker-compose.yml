@@ -60,8 +60,8 @@ services:
     networks:
       - tests-net
     image: selenium/node-chrome:4.11.0
-    container_name: selenium-node-chrome
-    shm_size: 2gb
+    #container_name: selenium-node-chrome
+    shm_size: 3gb
     depends_on:
       - selenium-hub
     environment:
@@ -69,6 +69,8 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    #  - SE_NODE_MAX_SESSIONS=5
+    #  - SE_NODE_OVERRIDE_MAX_SESSIONS=true
 
   site1:
     <<: *site_defaults

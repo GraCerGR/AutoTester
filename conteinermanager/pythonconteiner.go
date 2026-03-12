@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-func RunPythonTestsContainer(ctx context.Context, containerName, testURL string) (bool, error) {
+func RunPythonTestsContainer(ctx context.Context, containerName, testURL string, index int) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
@@ -23,7 +24,7 @@ func RunPythonTestsContainer(ctx context.Context, containerName, testURL string)
 		"-e", "SESSION_NAME=" + containerName,
 		"-e", fmt.Sprintf("TEST_URL=%s", testURL),
 		containerName,
-		"pytest", "-q", "-v", "-s", "--junitxml=/app/results/results.xml",
+		"pytest", "-q", "-v", "-s", fmt.Sprintf("--junitxml=/app/results/results_%s.xml", strconv.Itoa(index)),
 	}
 
 	fmt.Printf("Запуск Python тестов: docker %v\n", args)
@@ -109,10 +110,10 @@ func CommentPythonVariableInContainer(ctx context.Context, containerName, varNam
 	return nil
 }
 
-func CopyResultsFromPythonContainer(ctx context.Context, container, hostPath string) error {
+func CopyResultsFromPythonContainer(ctx context.Context, container, hostPath string, index int) error {
 	os.MkdirAll(hostPath, 0755)
 	return RunCmd(ctx, "docker", "cp",
-		container+":/app/results/results.xml",
-		filepath.Join(hostPath, "results.xml"),
+		container+":/app/results/results_"+strconv.Itoa(index)+".xml",
+		filepath.Join(hostPath, "results_"+strconv.Itoa(index)+".xml"),
 	)
 }
