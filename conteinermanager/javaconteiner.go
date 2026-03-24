@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-func RunJavaTestsContainer(ctx context.Context, containerName string) (bool, error) {
+func RunJavaTestsContainer(ctx context.Context, containerName, testURL string, index int) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("контейнер %s не запущен: %w", containerName, err)
@@ -20,9 +20,10 @@ func RunJavaTestsContainer(ctx context.Context, containerName string) (bool, err
 		"-u", "seluser",
 		"-w", "/app",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",
-		"-e", "SESSION_NAME="+containerName,
+		"-e", "SESSION_NAME=" + containerName,
+		"-e", fmt.Sprintf("TEST_URL=%s", testURL),
 		containerName,
-		"mvn", "clean", "test",
+		"mvn", "clean", "test", fmt.Sprintf("-Dsurefire.reportNameSuffix=%s", strconv.Itoa(index)),
 	}
 
 	fmt.Printf("Запуск Java тестов: docker %v\n", args)
@@ -35,6 +36,14 @@ func RunJavaTestsContainer(ctx context.Context, containerName string) (bool, err
 		fmt.Println("Java тесты прошли")
 	} else {
 		fmt.Println("Java тесты не прошли (но продолжаем)")
+	}
+
+	renameCmd := fmt.Sprintf(
+		"cd /app/target/surefire-reports && mv $(ls TEST-*%d.xml | head -n 1) results_%d.xml",
+		index, index,
+	)
+	if err := RunCmd(ctx, "docker", "exec", containerName, "sh", "-c", renameCmd); err != nil {
+		return passed, fmt.Errorf("не удалось переименовать файл результатов: %w", err)
 	}
 
 	return passed, nil
@@ -190,25 +199,57 @@ func RenameSurefireXML(resultsDir string) error {
 	return nil
 }
 
-func CopyResultsFromJavaContainer(ctx context.Context, container, hostPath string) error {
-	os.MkdirAll(hostPath, 0755)
-	cmd := exec.Command("docker", "exec", container, "sh", "-c", "ls /app/target/surefire-reports/TEST-*.xml | head -n 1")
-	out, err := cmd.Output()
-	if err != nil {
-		return fmt.Errorf("не удалось найти TEST-*.xml в контейнере: %w", err)
+func AddTestURLImportToJavaFiles(ctx context.Context, containerName, varName string) error {
+
+	cmd := `
+	find /app -name '*.java' ! -path '*/org/selenium/chrome/ChromeDriver.java' -exec sh -c '
+	for file do
+		if grep -q "^import static org\.selenium\.chrome\.ChromeDriver\.` + varName + `;$" "$file"; then
+			continue
+		fi
+
+		if grep -q "^package " "$file"; then
+			sed -i "/^package /a import static org.openqa.selenium.chrome.ChromeDriver.` + varName + `;" "$file"
+		else
+			sed -i "1i import static org.openqa.selenium.chrome.ChromeDriver.` + varName + `;" "$file"
+		fi
+	done
+	' sh {} +
+	`
+
+	if err := RunCmd(
+		ctx, "docker", "exec", containerName,
+		"bash", "-c", cmd,
+	); err != nil {
+		return fmt.Errorf("ошибка добавления import %v в java-файлы: %w", varName, err)
 	}
 
-	srcFile := strings.TrimSpace(string(out))
-	if srcFile == "" {
-		return fmt.Errorf("TEST-*.xml файл не найден в контейнере")
-	}
-
-	dstFile := filepath.Join(hostPath, "results.xml")
-
-	if err := RunCmd(ctx, "docker", "cp", fmt.Sprintf("%s:%s", container, srcFile), dstFile); err != nil {
-		return fmt.Errorf("не удалось скопировать файл из контейнера: %w", err)
-	}
-
-	fmt.Println("Файл результатов скопирован как", dstFile)
 	return nil
+}
+
+func CommentJavaVariableInContainer(ctx context.Context, containerName, varName string) error {
+	sedExpr := fmt.Sprintf(`s|^\(\s*\(public \|private \|protected \)\?\(static \)\?\(final \)\?.*\b%s\b\s*=.*;\s*\)$|// \1|`, varName)
+
+	cmd := fmt.Sprintf(
+		`find /app -name '*.java' ! -path '*/org/selenium/chrome/ChromeDriver.java' -exec sed -i '%s' {} +`,
+		sedExpr,
+	)
+
+	if err := RunCmd(
+		ctx, "docker", "exec", containerName,
+		"bash", "-c", cmd,
+	); err != nil {
+		return fmt.Errorf("Ошибка комментирования переменной %s в java-файлах: %w", varName, err)
+	}
+
+	return nil
+}
+
+func CopyResultsFromJavaContainer(ctx context.Context, container, hostPath string, index int) error {
+	os.MkdirAll(hostPath, 0755)
+
+	srcFile := fmt.Sprintf("/app/target/surefire-reports/results_%d.xml", index)
+	dstFile := filepath.Join(hostPath, fmt.Sprintf("results_%d.xml", index))
+
+	return RunCmd(ctx, "docker", "cp", container+":"+srcFile, dstFile)
 }

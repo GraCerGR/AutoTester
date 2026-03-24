@@ -3,37 +3,40 @@ package classes
 type TestVerdict string
 
 const (
-	verdictOk              TestVerdict = "OK"
-	verdictWrongAnswer     TestVerdict = "WRONG_ANSWER"
-	verdictFail            TestVerdict = "FAIL"
-	verdictEmpty           TestVerdict = ""
-	verdictWrongLength     TestVerdict = "WRONG_LENGTH"
-	verdictTimeout         TestVerdict = "TIMEOUT"
-	verdictFailLaunchTests TestVerdict = "FAIL_LAUNCH_TESTS"
-	verdictCheckerError    TestVerdict = "CHECKER_ERROR"
-	verdictNull            TestVerdict = ""
+	verdictOk                  TestVerdict = "OK"
+	verdictWrongAnswer         TestVerdict = "WRONG_ANSWER"
+	verdictFail                TestVerdict = "FAIL"
+	verdictEmpty               TestVerdict = ""
+	verdictWrongLength         TestVerdict = "WRONG_LENGTH"
+	verdictTimeout             TestVerdict = "TIMEOUT"
+	verdictFailLaunchTests     TestVerdict = "FAIL_LAUNCH_TESTS"
+	verdictFailLoadTestResults TestVerdict = "FAIL_LOAD_TEST_RESULTS"
+	verdictCheckerError        TestVerdict = "CHECKER_ERROR"
+	verdictNull                TestVerdict = ""
 )
 
 var TestVerdictEnum = struct {
-	WrongAnswer     TestVerdict
-	Ok              TestVerdict
-	Fail            TestVerdict
-	Empty           TestVerdict
-	WrongLength     TestVerdict
-	Timeout         TestVerdict
-	FailLaunchTests TestVerdict
-	CheckerError    TestVerdict
-	Null            TestVerdict
+	WrongAnswer         TestVerdict
+	Ok                  TestVerdict
+	Fail                TestVerdict
+	Empty               TestVerdict
+	WrongLength         TestVerdict
+	Timeout             TestVerdict
+	FailLaunchTests     TestVerdict
+	FailLoadTestResults TestVerdict
+	CheckerError        TestVerdict
+	Null                TestVerdict
 }{
-	Ok:              verdictOk,
-	Fail:            verdictFail,
-	Empty:           verdictEmpty,
-	WrongAnswer:     verdictWrongAnswer,
-	WrongLength:     verdictWrongLength,
-	Timeout:         verdictTimeout,
-	FailLaunchTests: verdictFailLaunchTests,
-	CheckerError:    verdictCheckerError,
-	Null:            verdictNull,
+	Ok:                  verdictOk,
+	Fail:                verdictFail,
+	Empty:               verdictEmpty,
+	WrongAnswer:         verdictWrongAnswer,
+	WrongLength:         verdictWrongLength,
+	Timeout:             verdictTimeout,
+	FailLaunchTests:     verdictFailLaunchTests,
+	FailLoadTestResults: verdictFailLoadTestResults,
+	CheckerError:        verdictCheckerError,
+	Null:                verdictNull,
 }
 
 type KV struct {

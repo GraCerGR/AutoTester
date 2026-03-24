@@ -75,7 +75,7 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	switch attempt.ProgrammingLanguageName {
 	case "python":
 		if err := conteinermanager.AddTestURLImportToPythonFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
-			comment := fmt.Sprintf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
+			comment := fmt.Sprintf("Ошибка добавления import "+attempt.VariableWithURL+": %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 
@@ -89,11 +89,15 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 			return myerrors.FailResult(comment)
 		}
 	case "java":
-		//Отправляет скрипт перенаправления запросов в хаб селениум грида
-		// if err := conteinermanager.ReplaceTestURLInJavaContainer(ctx, containerTestName, attempt.VariableWithURL, "http://"+containerSiteName+":80"); err != nil { //"TEST_URL"
-		// 	comment := fmt.Sprintf("Ошибка замены переменной "+attempt.VariableWithURL+": %v\n", err)
-		// 	return myerrors.FailResult(comment)
-		// }
+		if err := conteinermanager.AddTestURLImportToJavaFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+			comment := fmt.Sprintf("Ошибка добавления import"+attempt.VariableWithURL+": %v\n", err)
+			return myerrors.FailResult(comment)
+		}
+
+		if err := conteinermanager.CommentJavaVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+			comment := fmt.Sprintf("Ошибка комментирования переменной %s: %v\n", attempt.VariableWithURL, err)
+			return myerrors.FailResult(comment)
+		}
 
 		if err := conteinermanager.SendSiteJavaCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "ChromeDriver.java", containerTestName); err != nil {
 			comment := fmt.Sprintf("Ошибка отправки ChromeDriver.java: %v\n", err)
@@ -164,6 +168,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 				path := dirMap[index]
 				var checkerOneResult classes.CheckerTest
 				checkerOneResult.Id = index
+				checkerAllResults.AllTests[i].Id = checkerOneResult.Id
 
 				if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[threadIndex], true); err != nil {
 					msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
@@ -230,7 +235,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 					checkerAllResults.AllTests[i] = checkerOneResult
 					stop = true
 					mu.Unlock()
-					return
+					continue
 				}
 
 				mu.Lock()
@@ -252,7 +257,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 
 	var newAllTests []classes.CheckerTest
 	for i := range checkerAllResults.AllTests {
-		if checkerAllResults.AllTests[i].Id != 0 {
+		if checkerAllResults.AllTests[i].Id != 0 || checkerAllResults.AllTests[i].TestingVerdict == classes.TestVerdictEnum.Null {
 			newAllTests = append(newAllTests, checkerAllResults.AllTests[i])
 		}
 	}
@@ -264,6 +269,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 
 func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt, index int) (classes.CheckerTest, error) {
 	var launchResult classes.CheckerTest
+	launchResult.Id = index
 
 	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Test)
 	defer cancel()
@@ -287,13 +293,13 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 
 		if err := conteinermanager.CopyResultsFromPythonContainer(ctx, containerTest, resultsFolder, index); err != nil {
 			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
-			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLaunchTests
+			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLoadTestResults
 			launchResult.Comment = msg
 			return launchResult, err
 		}
 	case "java":
 
-		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest)
+		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -307,9 +313,9 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 			return launchResult, err
 		}
 
-		if err := conteinermanager.CopyResultsFromJavaContainer(ctx, containerTest, resultsFolder); err != nil {
+		if err := conteinermanager.CopyResultsFromJavaContainer(ctx, containerTest, resultsFolder, index); err != nil {
 			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
-			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLaunchTests
+			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLoadTestResults
 			launchResult.Comment = msg
 			return launchResult, err
 		}
