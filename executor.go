@@ -145,18 +145,16 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 			var checkerOneResult classes.CheckerTest
 			checkerOneResult.Id = index
 
-			//checkerAllResults.AllTests = append(checkerAllResults.AllTests, checkerOneResult)
-			//lastTest := &checkerAllResults.AllTests[len(checkerAllResults.AllTests)-1]
-
 			if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[index-1], true); err != nil {
 				msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
+
 				checkerOneResult.Comment = msg
 				checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
 
 				mu.Lock()
-				checkerAllResults.AllTests[i] = checkerOneResult
 				checkerAllResults.Comment = msg
 				checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+				checkerAllResults.AllTests[i] = checkerOneResult
 				mu.Unlock()
 
 				return
@@ -164,12 +162,48 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 
 			if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[index-1], resultsFolder, attempt, index); err != nil {
 				fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
+
 				mu.Lock()
-				checkerAllResults.AllTests[i] = launchResult
 				checkerAllResults.Comment = launchResult.Comment
 				checkerAllResults.TestingVerdict = launchResult.TestingVerdict
+				checkerAllResults.AllTests[i] = launchResult
 				mu.Unlock()
 
+				return
+			}
+
+			if checkerTest, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
+				fmt.Printf("Ошибка при проверке результатов: %v\n", err)
+
+				checkerOneResult.Comment = checkerTest.Comment
+				checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
+
+				mu.Lock()
+				checkerAllResults.Comment = checkerTest.Comment
+				checkerAllResults.TestingVerdict = checkerTest.TestingVerdict
+				checkerAllResults.AllTests[i] = checkerOneResult
+				mu.Unlock()
+
+				return
+
+			} else {
+				checkerOneResult.Comment = checkerTest.Comment
+				checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
+				checkerOneResult.Expected = checkerTest.Expected
+				checkerOneResult.Actual = checkerTest.Actual
+			}
+
+			if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
+				msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
+
+				checkerOneResult.Comment = msg
+				checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
+
+				mu.Lock()
+				checkerAllResults.Comment = checkerOneResult.Comment
+				checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+				checkerAllResults.AllTests[i] = checkerOneResult
+				mu.Unlock()
 				return
 			}
 
@@ -177,43 +211,12 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 			checkerAllResults.AllTests[i] = checkerOneResult
 			mu.Unlock()
 		}(i, index)
-
-		// if checkerOneResult, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
-		// 	fmt.Printf("Ошибка при проверке результатов: %v\n", err)
-		// 	lastTest.Comment = checkerOneResult.Comment
-		// 	lastTest.TestingVerdict = checkerOneResult.TestingVerdict
-
-		// 	checkerAllResults.Comment = lastTest.Comment
-		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-		// 	return checkerAllResults, err
-		// } else {
-		// 	lastTest.TestingVerdict = checkerOneResult.TestingVerdict
-		// 	lastTest.Comment = checkerOneResult.Comment
-		// 	lastTest.Expected = checkerOneResult.Expected
-		// 	lastTest.Actual = checkerOneResult.Actual
-		// }
-
-		// //Удаляем файлы сайта в сайтовом контейнере
-		// if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
-		// 	msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
-		// 	lastTest.Comment = msg
-		// 	lastTest.TestingVerdict = classes.TestVerdictEnum.Fail
-
-		// 	checkerAllResults.Comment = lastTest.Comment
-		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-		// 	return checkerAllResults, err
-		// }
-
-		// if lastTest.TestingVerdict != classes.TestVerdictEnum.Ok {
-		// 	checkerAllResults.TestingVerdict = lastTest.TestingVerdict
-		// 	checkerAllResults.Comment = lastTest.Comment
-		// 	break
-		// } else {
-		// 	checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
-		// }
 	}
 	wg.Wait()
-	// time.Sleep(10 * time.Second)
+
+	if checkerAllResults.TestingVerdict == classes.TestVerdictEnum.Null {
+		checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
+	}
 
 	return checkerAllResults, nil
 }

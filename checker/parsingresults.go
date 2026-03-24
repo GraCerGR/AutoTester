@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 type TestSuites struct {
@@ -105,7 +104,7 @@ func Parsing(resultsFilePath string, index int) error {
 func changeExtToJSON(path string, index int) string {
 	ext := filepath.Ext(path)
 	if ext == "" {
-		return path + "_" + strconv.Itoa(index) + ".json"
+		return path + ".json"
 	}
-	return path[:len(path)-len(ext)] + "_" + strconv.Itoa(index) + ".json"
+	return path[:len(path)-len(ext)] + ".json"
 }

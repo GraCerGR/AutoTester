@@ -3,34 +3,37 @@ package classes
 type TestVerdict string
 
 const (
-	verdictOk          TestVerdict = "OK"
-	verdictWrongAnswer TestVerdict = "WRONG_ANSWER"
-	verdictFail        TestVerdict = "FAIL"
-	verdictEmpty       TestVerdict = ""
-	verdictWrongLength TestVerdict = "WRONG_LENGTH"
-	verdictTimeout     TestVerdict = "TIMEOUT"
+	verdictOk              TestVerdict = "OK"
+	verdictWrongAnswer     TestVerdict = "WRONG_ANSWER"
+	verdictFail            TestVerdict = "FAIL"
+	verdictEmpty           TestVerdict = ""
+	verdictWrongLength     TestVerdict = "WRONG_LENGTH"
+	verdictTimeout         TestVerdict = "TIMEOUT"
 	verdictFailLaunchTests TestVerdict = "FAIL_LAUNCH_TESTS"
-	verdictCheckerError TestVerdict = "CHECKER_ERROR"
+	verdictCheckerError    TestVerdict = "CHECKER_ERROR"
+	verdictNull            TestVerdict = ""
 )
 
 var TestVerdictEnum = struct {
-	WrongAnswer TestVerdict
-	Ok          TestVerdict
-	Fail        TestVerdict
-	Empty       TestVerdict
-	WrongLength TestVerdict
-	Timeout     TestVerdict
+	WrongAnswer     TestVerdict
+	Ok              TestVerdict
+	Fail            TestVerdict
+	Empty           TestVerdict
+	WrongLength     TestVerdict
+	Timeout         TestVerdict
 	FailLaunchTests TestVerdict
-	CheckerError TestVerdict
+	CheckerError    TestVerdict
+	Null            TestVerdict
 }{
-	Ok:          verdictOk,
-	Fail:        verdictFail,
-	Empty:       verdictEmpty,
-	WrongAnswer: verdictWrongAnswer,
-	WrongLength: verdictWrongLength,
-	Timeout:     verdictTimeout,
+	Ok:              verdictOk,
+	Fail:            verdictFail,
+	Empty:           verdictEmpty,
+	WrongAnswer:     verdictWrongAnswer,
+	WrongLength:     verdictWrongLength,
+	Timeout:         verdictTimeout,
 	FailLaunchTests: verdictFailLaunchTests,
-	CheckerError: verdictCheckerError,
+	CheckerError:    verdictCheckerError,
+	Null:            verdictNull,
 }
 
 type KV struct {
@@ -39,7 +42,7 @@ type KV struct {
 }
 
 type CheckerTest struct {
-	Id         int
+	Id             int
 	Expected       []KV
 	Actual         []KV
 	TestingVerdict TestVerdict
