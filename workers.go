@@ -49,7 +49,7 @@ func StartQueueWorker(ctx context.Context, rdb *redis.Client) {
 					}
 
 					// Поиск свободного сайтового контейнера
-					containerSites, err := WaitForFreeContainer(ctx, rdb, settings.SiteContainers, "", a.Threads.Number)
+					containerSites, err := WaitForFreeContainer(ctx, rdb, settings.SiteContainers, "", a.Threads)
 					if err != nil {
 						fmt.Printf("Не удалось получить свободный сайт-контейнер: %v\n", err)
 						_ = rdb.LPush(ctx, key, data[1]).Err()

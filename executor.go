@@ -134,89 +134,130 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 	var mu sync.Mutex
 	checkerAllResults.AllTests = make([]classes.CheckerTest, len(dirs))
 
-	for i, index := range dirs {
+	threads := attempt.Threads
+
+	if threads > len(dirs) {
+		threads = len(dirs)
+	}
+
+	var stop bool = false
+
+	for t := 0; t < threads; t++ {
 
 		wg.Add(1)
 
-		go func(i int, index int) {
+		go func(threadIndex int) {
 			defer wg.Done()
 
-			path := dirMap[index]
-			var checkerOneResult classes.CheckerTest
-			checkerOneResult.Id = index
+			for i := threadIndex; i < len(dirs); i += threads {
 
-			if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[index-1], true); err != nil {
-				msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
+				if attempt.ShutdownCondition == classes.ShutdownConditionEnum.UntilTheFirstError {
+					mu.Lock()
+					if stop {
+						mu.Unlock()
+						return
+					}
+					mu.Unlock()
+				}
 
-				checkerOneResult.Comment = msg
-				checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
+				index := dirs[i]
+				path := dirMap[index]
+				var checkerOneResult classes.CheckerTest
+				checkerOneResult.Id = index
+
+				if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[threadIndex], true); err != nil {
+					msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
+
+					checkerOneResult.Comment = msg
+					checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
+
+					mu.Lock()
+					checkerAllResults.Comment = msg
+					checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+					checkerAllResults.AllTests[i] = checkerOneResult
+					stop = true
+					mu.Unlock()
+
+					return
+				}
+
+				if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[threadIndex], resultsFolder, attempt, index); err != nil {
+					fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
+
+					mu.Lock()
+					checkerAllResults.Comment = launchResult.Comment
+					checkerAllResults.TestingVerdict = launchResult.TestingVerdict
+					checkerAllResults.AllTests[i] = launchResult
+					stop = true
+					mu.Unlock()
+
+					_ = conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
+					continue
+				}
+
+				if checkerTest, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
+					fmt.Printf("Ошибка при проверке результатов: %v\n", err)
+
+					checkerOneResult.Comment = checkerTest.Comment
+					checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
+
+					mu.Lock()
+					checkerAllResults.Comment = checkerTest.Comment
+					checkerAllResults.TestingVerdict = checkerTest.TestingVerdict
+					checkerAllResults.AllTests[i] = checkerOneResult
+					stop = true
+					mu.Unlock()
+
+					_ = conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
+					continue
+
+				} else {
+					checkerOneResult.Comment = checkerTest.Comment
+					checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
+					checkerOneResult.Expected = checkerTest.Expected
+					checkerOneResult.Actual = checkerTest.Actual
+				}
+
+				if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true); err != nil {
+					msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
+
+					checkerOneResult.Comment = msg
+					checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
+
+					mu.Lock()
+					checkerAllResults.Comment = checkerOneResult.Comment
+					checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+					checkerAllResults.AllTests[i] = checkerOneResult
+					stop = true
+					mu.Unlock()
+					return
+				}
 
 				mu.Lock()
-				checkerAllResults.Comment = msg
-				checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
 				checkerAllResults.AllTests[i] = checkerOneResult
+				if checkerOneResult.TestingVerdict != classes.TestVerdictEnum.Ok {
+					checkerAllResults.Comment = checkerOneResult.Comment
+					checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
+					stop = true
+				}
 				mu.Unlock()
-
-				return
 			}
-
-			if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[index-1], resultsFolder, attempt, index); err != nil {
-				fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
-
-				mu.Lock()
-				checkerAllResults.Comment = launchResult.Comment
-				checkerAllResults.TestingVerdict = launchResult.TestingVerdict
-				checkerAllResults.AllTests[i] = launchResult
-				mu.Unlock()
-
-				return
-			}
-
-			if checkerTest, err := Checker(ctx, index, resultsFolder, correctResultsFolder); err != nil {
-				fmt.Printf("Ошибка при проверке результатов: %v\n", err)
-
-				checkerOneResult.Comment = checkerTest.Comment
-				checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
-
-				mu.Lock()
-				checkerAllResults.Comment = checkerTest.Comment
-				checkerAllResults.TestingVerdict = checkerTest.TestingVerdict
-				checkerAllResults.AllTests[i] = checkerOneResult
-				mu.Unlock()
-
-				return
-
-			} else {
-				checkerOneResult.Comment = checkerTest.Comment
-				checkerOneResult.TestingVerdict = checkerTest.TestingVerdict
-				checkerOneResult.Expected = checkerTest.Expected
-				checkerOneResult.Actual = checkerTest.Actual
-			}
-
-			if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[index-1], true); err != nil {
-				msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
-
-				checkerOneResult.Comment = msg
-				checkerOneResult.TestingVerdict = classes.TestVerdictEnum.Fail
-
-				mu.Lock()
-				checkerAllResults.Comment = checkerOneResult.Comment
-				checkerAllResults.TestingVerdict = checkerOneResult.TestingVerdict
-				checkerAllResults.AllTests[i] = checkerOneResult
-				mu.Unlock()
-				return
-			}
-
-			mu.Lock()
-			checkerAllResults.AllTests[i] = checkerOneResult
-			mu.Unlock()
-		}(i, index)
+		}(t)
 	}
 	wg.Wait()
 
 	if checkerAllResults.TestingVerdict == classes.TestVerdictEnum.Null {
 		checkerAllResults.TestingVerdict = classes.TestVerdictEnum.Ok
 	}
+
+	var newAllTests []classes.CheckerTest
+	for i := range checkerAllResults.AllTests {
+		if checkerAllResults.AllTests[i].Id != 0 {
+			newAllTests = append(newAllTests, checkerAllResults.AllTests[i])
+		}
+	}
+
+	checkerAllResults.AllTests = newAllTests
 
 	return checkerAllResults, nil
 }

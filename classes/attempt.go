@@ -15,7 +15,7 @@ type Attempt struct {
 	VariableWithURL         string
 	ProgrammingLanguageName string
 	Timeouts                Timeouts
-	Threads                 Threads
+	Threads                 int
 	ShutdownCondition       ShutdownCondition
 }
 

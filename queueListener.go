@@ -81,8 +81,7 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 			timeout_execution,
 			timeout_test,
 
-			threads_number,
-			threads_reuse,
+			threads,
 
 			shutdown_condition
 
@@ -101,8 +100,7 @@ func loadAttemptByID(ctx context.Context, pool *pgxpool.Pool, id string) (classe
 		&a.ProgrammingLanguageName,
 		&a.Timeouts.Execution,
 		&a.Timeouts.Test,
-		&a.Threads.Number,
-		&a.Threads.Reuse,
+		&a.Threads,
 		&a.ShutdownCondition,
 	)
 	return a, err

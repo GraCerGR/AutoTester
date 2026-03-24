@@ -2,7 +2,7 @@ networks:
   tests-net:
     name: tests-net
 
-x-site-defaults: &site_defaults
+x-worker-defaults: &worker_defaults
   image: mysite:latest
   build:
     context: ..
@@ -72,22 +72,22 @@ services:
     #  - SE_NODE_MAX_SESSIONS=5
     #  - SE_NODE_OVERRIDE_MAX_SESSIONS=true
 
-  site1:
-    <<: *site_defaults
-    container_name: site1
+  worker1:
+    <<: *worker_defaults
+    container_name: worker1
 
-  site2:
-    <<: *site_defaults
-    container_name: site2
+  worker2:
+    <<: *worker_defaults
+    container_name: worker2
 
-  site3:
-    <<: *site_defaults
-    container_name: site3
+  worker3:
+    <<: *worker_defaults
+    container_name: worker3
 
-  site4:
-    <<: *site_defaults
-    container_name: site4
+  worker4:
+    <<: *worker_defaults
+    container_name: worker4
 
-  site5:
-    <<: *site_defaults
-    container_name: site5
+  worker5:
+    <<: *worker_defaults
+    container_name: worker5

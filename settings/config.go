@@ -42,9 +42,9 @@ var TestContainers = []Container{
 }
 
 var SiteContainers = []Container{
-	{"site1", ""},
-	{"site2", ""},
-	{"site3", ""},
-	{"site4", ""},
-	{"site5", ""},
+	{"worker1", ""},
+	{"worker2", ""},
+	{"worker3", ""},
+	{"worker4", ""},
+	{"worker5", ""},
 }
