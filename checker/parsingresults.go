@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type TestSuites struct {
@@ -39,7 +40,7 @@ type Failure struct {
 	Content string `xml:",chardata"`
 }
 
-func Parsing(resultsFilePath string, index int) error {
+func Parsing(resultsFilePath string, args ...int) error {
 	xmlFile, err := os.Open(resultsFilePath)
 	if err != nil {
 		return fmt.Errorf("Ошибка открытия файла: %w", err)
@@ -84,7 +85,7 @@ func Parsing(resultsFilePath string, index int) error {
 		}
 	}
 
-	outPath := changeExtToJSON(resultsFilePath, index)
+	outPath := changeExtToJSON(resultsFilePath, args...)
 	outFile, err := os.Create(outPath)
 	if err != nil {
 		return fmt.Errorf("Ошибка создания файла %s: %w", outPath, err)
@@ -101,10 +102,51 @@ func Parsing(resultsFilePath string, index int) error {
 	return nil
 }
 
-func changeExtToJSON(path string, index int) string {
+func ParseFolder(xmlFolder string, args ...string) error {
+	files, err := os.ReadDir(xmlFolder)
+	if err != nil {
+		return fmt.Errorf("не удалось прочитать папку %s: %w", xmlFolder, err)
+	}
+
+	index := 1
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		if filepath.Ext(file.Name()) != ".xml" {
+			continue
+		}
+
+		xmlPath := filepath.Join(xmlFolder, file.Name())
+		if args != nil {
+			if args[0] == "true" {
+				if err := Parsing(xmlPath, index); err != nil {
+					fmt.Printf("Ошибка при парсинге файла %s: %v\n", file.Name(), err)
+				}
+			} else {
+				if err := Parsing(xmlPath); err != nil {
+					fmt.Printf("Ошибка при парсинге файла %s: %v\n", file.Name(), err)
+				}
+			}
+		} else {
+			if err := Parsing(xmlPath); err != nil {
+				fmt.Printf("Ошибка при парсинге файла %s: %v\n", file.Name(), err)
+			}
+		}
+		index++
+	}
+
+	return nil
+}
+
+func changeExtToJSON(path string, index ...int) string {
+	i := ""
+	if index != nil {
+		i = "_" + strconv.Itoa(index[0])
+	}
 	ext := filepath.Ext(path)
 	if ext == "" {
-		return path + ".json"
+		return path + i + ".json"
 	}
-	return path[:len(path)-len(ext)] + ".json"
+	return path[:len(path)-len(ext)] + i + ".json"
 }
