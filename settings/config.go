@@ -20,7 +20,7 @@ const TestTimeout = 10 * time.Minute
 const (
 	FolderSite     = "Results/Sites/Gits/"
 	FolderSolution = "Results/Solutions/Gits/"
-	FolderLog = "Results/Logs/"
+	FolderLog      = "Results/Logs/"
 )
 
 // Database
