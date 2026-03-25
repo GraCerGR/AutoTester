@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/redis/go-redis/v9"
@@ -39,7 +40,7 @@ func Executor(parentCtx context.Context, redisClient *redis.Client, attempt clas
 		fmt.Println("Результат проверки:")
 		fmt.Println(string(b))
 
-		Ending(redisClient, attempt, containerTestName, containersSiteName, checkerResult)
+		Ending(redisClient, containerTestName, containersSiteName, checkerResult, attempt)
 	}()
 
 	checkerResult = ExecutorMain(ctx, attempt, containerTestName, containersSiteName)
@@ -54,8 +55,14 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 
 	fmt.Printf("Контейнеры выбраны для проверки:%v и %v\n", containerTestName, containersSiteName)
 
+	//Создание папкок для хранения
+	if err := createFolders(attempt); err != nil {
+		comment := fmt.Sprintf("Ошибка создания папок: %v\n", err)
+		return myerrors.FailResult(comment)
+	}
+
 	//Загрузка решения из гита
-	if err := commands.DownloadFromGit(ctx, attempt.SolutionGit.URL, attempt.SolutionGit.Branch, "", "Solutions/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.SolutionGit.URL, attempt.SolutionGit.Branch, "", settings.FolderSolution+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки решения с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
@@ -67,7 +74,7 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	}
 
 	//Передаём файлы теста в тестовый контейнер
-	if err := conteinermanager.SendProjectToImage(ctx, "Solutions/Gits/"+containerTestName, containerTestName, false); err != nil {
+	if err := conteinermanager.SendProjectToImage(ctx, settings.FolderSolution+containerTestName, containerTestName, false); err != nil {
 		comment := fmt.Sprintf("Ошибка передачи проекта в контейнер: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
@@ -106,14 +113,13 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	}
 
 	//Загрузка сайта из гита
-	if err := commands.DownloadFromGit(ctx, attempt.SiteGit.URL, attempt.SiteGit.Branch, "", "Sites/Gits/"+containerTestName, ""); err != nil {
+	if err := commands.DownloadFromGit(ctx, attempt.SiteGit.URL, attempt.SiteGit.Branch, "", settings.FolderSite+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки сайта с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
-	// Папка потока - генерируется с именем тестового контейнера
-	if checkerAllResults, err := ExecutionSolutionOnSites(ctx, "Sites/Gits/"+containerTestName+"/Sites", "Sites/Gits/"+containerTestName+"/StudentResults",
-		"Sites/Gits/"+containerTestName+"/Results", containerTestName, containersSiteName, attempt); err != nil {
+	if checkerAllResults, err := ExecutionSolutionOnSites(ctx, settings.FolderSite+containerTestName+"/Sites", settings.FolderSite+containerTestName+"/StudentResults",
+		settings.FolderSite+containerTestName+"/Results", containerTestName, containersSiteName, attempt); err != nil {
 		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
 		return checkerAllResults
 	} else {
@@ -257,7 +263,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 
 	var newAllTests []classes.CheckerTest
 	for i := range checkerAllResults.AllTests {
-		if checkerAllResults.AllTests[i].Id != 0 || checkerAllResults.AllTests[i].TestingVerdict == classes.TestVerdictEnum.Null {
+		if checkerAllResults.AllTests[i].Id != 0 || checkerAllResults.AllTests[i].TestingVerdict != classes.TestVerdictEnum.Null {
 			newAllTests = append(newAllTests, checkerAllResults.AllTests[i])
 		}
 	}
@@ -274,10 +280,12 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Test)
 	defer cancel()
 
+	logFilePath := fmt.Sprintf("%s/%d.log", settings.FolderLog+attempt.Id.String(), index)
+
 	switch attempt.ProgrammingLanguageName {
 	case "python":
 
-		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index)
+		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -299,7 +307,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 		}
 	case "java":
 
-		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index)
+		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -340,20 +348,24 @@ func ClearAllContainers(ctx context.Context, containerTestName string, container
 	}
 
 	//Удаляем файлы сайта и решения с хоста
-	if err := commands.ClearHostFolder("Sites/Gits/" + containerTestName); err != nil {
+	if err := commands.ClearHostFolder(settings.FolderSite + containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления файлов сайта: %v\n", err)
 	}
-	if err := commands.ClearHostFolder("Solutions/Gits/" + containerTestName); err != nil {
+	if err := commands.ClearHostFolder(settings.FolderSolution + containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления файлов решения: %v\n", err)
 	}
 
 	conteinermanager.RemoveTestContainer(ctx, containerTestName)
 }
 
-func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker) {
+func Ending(redisClient *redis.Client, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker, attempt classes.Attempt) {
 	ctx := context.Background()
 
-	// Отправка результата проверки
+	// Отправка результата проверки (пока просто сохранение в файл)
+	b, _ := json.MarshalIndent(results, "", "  ")
+	if err := os.WriteFile(settings.FolderLog+attempt.Id.String()+"/result.json", b, 0644); err != nil {
+		fmt.Printf("Ошибка создания файла результата: %v\n", err)
+	}
 
 	ClearAllContainers(ctx, containerTestName, containerSiteName)
 
@@ -368,4 +380,17 @@ func Ending(redisClient *redis.Client, attempt classes.Attempt, containerTestNam
 	}
 
 	fmt.Printf("Executor свободен для новых задач\n")
+}
+
+func createFolders(attempt classes.Attempt) error {
+	if err := commands.CreateFolder(settings.FolderLog + attempt.Id.String()); err != nil {
+		return err
+	}
+	if err := commands.CreateFolder(settings.FolderSolution); err != nil {
+		return err
+	}
+	if err := commands.CreateFolder(settings.FolderSite); err != nil {
+		return err
+	}
+	return nil
 }

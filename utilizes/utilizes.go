@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -14,11 +15,10 @@ func GenerateStringId() string {
 
 	//now := time.Now()
 	//timeStr := now.Format("2006-01-02_15-04-05")
-	
+
 	id := fmt.Sprintf("%s", uuid.New())
 	return id
 }
-
 
 func CountingFolder(folderPath string) ([]int, map[int]string, error) {
 	entries, err := os.ReadDir(folderPath)
@@ -49,4 +49,11 @@ func CountingFolder(folderPath string) ([]int, map[int]string, error) {
 		return nil, nil, fmt.Errorf("%s", msg)
 	}
 	return dirs, dirMap, nil
+}
+
+func GenerateFolderName(id uuid.UUID, time time.Time) string {
+	timePart := time.Format("2006-01-02_15-04-05")
+	name := fmt.Sprintf("%s %s", id, timePart)
+
+	return name
 }

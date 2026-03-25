@@ -32,3 +32,10 @@ func ClearHostFolder(path string) error {
 	fmt.Println("Файлы успешно удалены из папки", path)
 	return nil
 }
+
+func CreateFolder(folderPath string) error {
+	if err := os.MkdirAll(folderPath, 0755); err != nil {
+		return fmt.Errorf("Ошибка создания папки %s: %w", folderPath, err)
+	}
+	return nil
+}

@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func RunPythonTestsContainer(ctx context.Context, containerName, testURL string, index int) (bool, error) {
+func RunPythonTestsContainer(ctx context.Context, containerName, testURL string, index int, logFilePath string) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
@@ -29,7 +29,7 @@ func RunPythonTestsContainer(ctx context.Context, containerName, testURL string,
 
 	fmt.Printf("Запуск Python тестов: docker %v\n", args)
 
-	passed, err := runCmdAllowFail(ctx, "docker", args...)
+	passed, err := runCmdForAutotests(ctx, logFilePath, "docker", args...)
 	if err != nil {
 		return false, err
 	}

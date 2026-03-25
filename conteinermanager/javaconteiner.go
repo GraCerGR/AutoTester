@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func RunJavaTestsContainer(ctx context.Context, containerName, testURL string, index int) (bool, error) {
+func RunJavaTestsContainer(ctx context.Context, containerName, testURL string, index int, logFilePath string) (bool, error) {
 
 	if isRunning, err := checkContainerRunning(containerName); err != nil || !isRunning {
 		return false, fmt.Errorf("контейнер %s не запущен: %w", containerName, err)
@@ -23,12 +23,12 @@ func RunJavaTestsContainer(ctx context.Context, containerName, testURL string, i
 		"-e", "SESSION_NAME=" + containerName,
 		"-e", fmt.Sprintf("TEST_URL=%s", testURL),
 		containerName,
-		"mvn", "clean", "test", fmt.Sprintf("-Dsurefire.reportNameSuffix=%s", strconv.Itoa(index)),
+		"mvn", "test", fmt.Sprintf("-Dsurefire.reportNameSuffix=%s", strconv.Itoa(index)),
 	}
 
 	fmt.Printf("Запуск Java тестов: docker %v\n", args)
 
-	passed, err := runCmdAllowFail(ctx, "docker", args...)
+	passed, err := runCmdForAutotests(ctx, logFilePath, "docker", args...)
 	if err != nil {
 		return false, err
 	}

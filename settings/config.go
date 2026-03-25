@@ -16,6 +16,13 @@ const (
 const ExecutionTimeout = 15 * time.Minute
 const TestTimeout = 10 * time.Minute
 
+// Папки для хранения загружаемых файлов и результатов
+const (
+	FolderSite     = "Results/Sites/Gits/"
+	FolderSolution = "Results/Solutions/Gits/"
+	FolderLog = "Results/Logs/"
+)
+
 // Database
 const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
 

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 func RunCmd(ctx context.Context, name string, args ...string) error {
@@ -71,7 +72,7 @@ func streamCopy(r io.Reader, buf *bytes.Buffer) {
 	io.Copy(io.MultiWriter(buf, os.Stdout), r)
 }
 
-func runCmdAllowFail(ctx context.Context, name string, args ...string) (bool, error) {
+func runCmdForAutotests(ctx context.Context, logFilePath string, name string, args ...string) (bool, error) {
 	fmt.Printf("[CMD] Выполнение: %s %v\n", name, args)
 
 	cmd := exec.CommandContext(ctx, name, args...)
@@ -79,17 +80,34 @@ func runCmdAllowFail(ctx context.Context, name string, args ...string) (bool, er
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
 
+	logFile, err := os.Create(logFilePath)
+	if err != nil {
+		return false, fmt.Errorf("ошибка создания лог-файла %s: %w", logFilePath, err)
+	}
+	defer logFile.Close()
+
+	stdoutWriter := io.MultiWriter(os.Stdout, logFile)
+	stderrWriter := io.MultiWriter(os.Stderr, logFile)
+
 	if err := cmd.Start(); err != nil {
 		return false, fmt.Errorf("Ошибка запуска команды: %w", err)
 	}
 
-	go func() { io.Copy(os.Stdout, stdout) }()
-	go func() { io.Copy(os.Stderr, stderr) }()
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	//go stream(stdout, "[OUT]")
-	//go stream(stderr, "[ERR]")
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(stdoutWriter, stdout)
+	}()
 
-	err := cmd.Wait()
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(stderrWriter, stderr)
+	}()
+
+	err = cmd.Wait()
+	wg.Wait()
 
 	if ctx.Err() != nil {
 		return false, ctx.Err()
