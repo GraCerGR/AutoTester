@@ -199,7 +199,16 @@ func RunTestContainer(ctx context.Context, containerName string, imageTag string
 	)
 }
 
-func RemoveTestContainer(ctx context.Context, containerName string) error {
+func RunSiteContainer(ctx context.Context, containerName string, imageTag string) error {
+	return RunCmd(ctx, "docker", "run", "-d",
+		"--name", containerName,
+		"--network", "tests-net",
+		"--restart", "unless-stopped",
+		imageTag+":latest",
+	)
+}
+
+func RemoveContainer(ctx context.Context, containerName string) error {
 	return RunCmd(ctx, "docker", "rm", "-f", containerName)
 }
 

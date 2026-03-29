@@ -18,7 +18,7 @@ func StartCompose(ctx context.Context, composeDir string) error {
 
 	fmt.Println("Запуск контейнеров docker compose")
 
-	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d", "--scale", "selenium-node-chrome=5"); err != nil { //, "--scale", "selenium-node-chrome=5"
+	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d", "--scale", "selenium-node-chrome="+settings.SeleniumNodeChromeNumber); err != nil { //, "--scale", "selenium-node-chrome=5"
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 

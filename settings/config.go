@@ -28,10 +28,11 @@ const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=di
 
 // Selenium Grid
 const (
-	HubStatusURL        = "http://localhost:4444/status"
-	HubURL              = "http://localhost:4444"
-	HubWaitTimeout      = 40 * time.Second
-	HubWaitPollInterval = 1 * time.Second
+	HubStatusURL             = "http://localhost:4444/status"
+	HubURL                   = "http://localhost:4444"
+	HubWaitTimeout           = 40 * time.Second
+	HubWaitPollInterval      = 1 * time.Second
+	SeleniumNodeChromeNumber = "5"
 )
 
 // Контейнеры

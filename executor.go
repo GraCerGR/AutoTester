@@ -118,6 +118,14 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 		return myerrors.FailResult(comment)
 	}
 
+	//Запуск контейнеров с сайтом
+	for i := range containersSiteName {
+		if err := conteinermanager.RunSiteContainer(ctx, containersSiteName[i], settings.ChooseImageTag("site")); err != nil {
+			comment := fmt.Sprintf("Не удалось создать site container: %v\n", err)
+			return myerrors.FailResult(comment)
+		}
+	}
+
 	if checkerAllResults, err := ExecutionSolutionOnSites(ctx, settings.FolderSite+containerTestName+"/Sites", settings.FolderSite+containerTestName+"/StudentResults",
 		settings.FolderSite+containerTestName+"/Results", containerTestName, containersSiteName, attempt); err != nil {
 		fmt.Printf("Ошибка при запуске автотестов в контейнере: %v\n", err)
@@ -355,7 +363,10 @@ func ClearAllContainers(ctx context.Context, containerTestName string, container
 		fmt.Printf("Ошибка удаления файлов решения: %v\n", err)
 	}
 
-	conteinermanager.RemoveTestContainer(ctx, containerTestName)
+	conteinermanager.RemoveContainer(ctx, containerTestName)
+	for index := range containerSiteName {
+		conteinermanager.RemoveContainer(ctx, containerSiteName[index])
+	}
 }
 
 func Ending(redisClient *redis.Client, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker, attempt classes.Attempt) {

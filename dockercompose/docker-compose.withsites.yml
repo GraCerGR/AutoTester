@@ -71,3 +71,23 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
     #  - SE_NODE_MAX_SESSIONS=5
     #  - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+
+  worker1:
+    <<: *worker_defaults
+    container_name: worker1
+
+  worker2:
+    <<: *worker_defaults
+    container_name: worker2
+
+  worker3:
+    <<: *worker_defaults
+    container_name: worker3
+
+  worker4:
+    <<: *worker_defaults
+    container_name: worker4
+
+  worker5:
+    <<: *worker_defaults
+    container_name: worker5
