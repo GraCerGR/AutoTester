@@ -190,6 +190,10 @@ func DockerBuild(ctx context.Context, imageTag string, dockerfileName string, co
 
 func RunTestContainer(ctx context.Context, containerName string, imageTag string) error {
 	return RunCmd(ctx, "docker", "run", "-d",
+		"--memory", "1g",
+		"--cpus", "1.0",
+		"--shm-size", "1g",
+		"--pids-limit", "300",
 		"--name", containerName,
 		"--network", "tests-net",
 		"-e", "SELENIUM_HUB=http://selenium-hub:4444",

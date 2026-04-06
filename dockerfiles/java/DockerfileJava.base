@@ -1,4 +1,3 @@
-# FROM selenium/node-chrome:4.11.0
 FROM debian:bookworm-slim
 USER root
 

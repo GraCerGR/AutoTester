@@ -15,7 +15,7 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	// ---- Runner ----
 	ctx := context.Background()
-	//Запуск компоуза с гридом, реддисом и контейнеров с сайтами
+	//Запуск компоуза с гридом и реддисом
 	if err := dockercompose.StartCompose(ctx, "./dockercompose"); err != nil {
 		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 		return nil, nil, err

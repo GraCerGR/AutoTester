@@ -1,4 +1,3 @@
-# FROM selenium/node-chrome:4.11.0
 FROM python:3.13-slim
 
 USER root
