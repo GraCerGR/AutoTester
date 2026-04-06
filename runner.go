@@ -3,10 +3,12 @@ package main
 import (
 	"MainApp/conteinermanager"
 	dockercompose "MainApp/dockercompose"
-	myredis "MainApp/messageBrokers/redis"
+	messagebrokers "MainApp/messagebrokers/kafka"
+	myredis "MainApp/messagebrokers/redis"
 	"MainApp/settings"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,17 +17,17 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	// ---- Runner ----
 	ctx := context.Background()
-	
+
 	//Запуск компоуза с гридом, реддисом и кафкой
 	if err := dockercompose.StartCompose(ctx, "./dockercompose"); err != nil {
-		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
+		fmt.Printf("Ошибка запуска docker compose: %v\n", err)
 		return nil, nil, err
 	}
 
 	//Сборка образов для тестовых контейнеров
 	for _, stack := range settings.Stacks {
 		if err := conteinermanager.DockerBuild(ctx, settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
-			fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
+			fmt.Printf("Ошибка создания образов: %v\n", err)
 			return nil, nil, err
 		}
 	}
@@ -46,6 +48,12 @@ func Runner() (context.Context, *redis.Client, error) {
 	}
 
 	//Запуск worker очереди
+	time.Sleep(10 * time.Second)
+	if err = messagebrokers.CreateTopicKafka(settings.KafkaBrokers[0], settings.KafkaResultsTopic, settings.KafkaPartitions, settings.KafkaReplicationFactor); err != nil {
+		fmt.Printf("Ошибка создания топика Kafka: %v\n", err)
+		return nil, nil, err
+	}
+
 	StartAttemptKafkaWorker(ctx, redisClient)
 
 	return ctx, redisClient, nil

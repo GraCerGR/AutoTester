@@ -2,6 +2,7 @@ package main
 
 import (
 	"MainApp/classes"
+	"MainApp/settings"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,19 +12,19 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-
-func StartAttemptKafkaListener(ctx context.Context, brokers []string, topic string, groupID string, onNew func(ctx context.Context, a classes.Attempt) error,
+func StartAttemptKafkaListener(ctx context.Context, onNew func(ctx context.Context, a classes.Attempt) error,
 ) error {
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  brokers,
-		Topic:    topic,
-		GroupID:  groupID,
+		Brokers:  settings.KafkaBrokers,
+		Topic:    settings.KafkaAttemptsTopic,
+		GroupID:  settings.KafkaGroup,
 		MinBytes: 1,
 		MaxBytes: 10e6,
 	})
 	defer r.Close()
 
-	log.Printf("Kafka consumer started: topic=%s group=%s", topic, groupID)
+	log.Printf("Kafka consumer started: topic=%s group=%s", settings.KafkaAttemptsTopic, settings.KafkaGroup)
+
 
 	for {
 		msg, err := r.FetchMessage(ctx)
@@ -51,7 +52,6 @@ func StartAttemptKafkaListener(ctx context.Context, brokers []string, topic stri
 		}
 	}
 }
-
 
 func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ctx context.Context, a classes.Attempt) error) error {
 	pool, err := pgxpool.New(ctx, pgDSN)

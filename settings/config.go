@@ -14,10 +14,12 @@ const (
 
 // kafka
 var KafkaBrokers = []string{"localhost:9092"}
-
 const (
-	KafkaTopic = "attempts"
-	KafkaGroup = "attempts-router"
+	KafkaAttemptsTopic     = "attempts-attempts"
+	KafkaResultsTopic      = "attempts-results"
+	KafkaPartitions        = 1
+	KafkaReplicationFactor = 1
+	KafkaGroup             = "attempts-router"
 	KafkaPollInterval      = 1 * time.Second
 )
 

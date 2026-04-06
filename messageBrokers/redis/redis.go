@@ -1,4 +1,4 @@
-package messageBrokers
+package messagebrokers
 
 import (
 	"MainApp/classes"

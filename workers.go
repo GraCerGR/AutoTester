@@ -2,7 +2,7 @@ package main
 
 import (
 	"MainApp/classes"
-	myredis "MainApp/messageBrokers/redis"
+	myredis "MainApp/messagebrokers/redis"
 	"MainApp/settings"
 	"context"
 	"encoding/json"
@@ -16,16 +16,25 @@ import (
 // Слушает все очереди и запускает Executor, когда контейнер свободен
 // Создаёт очереди для каждого стека
 func StartAttemptKafkaWorker(ctx context.Context, rdb *redis.Client) error {
+
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  settings.KafkaBrokers,
-		Topic:    settings.KafkaTopic,
+		Topic:    settings.KafkaAttemptsTopic,
 		GroupID:  settings.KafkaGroup,
 		MinBytes: 1,
 		MaxBytes: 10e6,
 	})
 	defer r.Close()
+	fmt.Printf("Kafka reader started: topic=%s group=%s\n", settings.KafkaAttemptsTopic, settings.KafkaGroup)
 
-	fmt.Printf("Kafka worker started: topic=%s group=%s\n", settings.KafkaTopic, settings.KafkaGroup)
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:  settings.KafkaBrokers,
+		Topic:    settings.KafkaResultsTopic,
+		Balancer: &kafka.Hash{},
+	})
+	defer w.Close()
+
+	fmt.Printf("Kafka writer started: topic=%s\n", settings.KafkaResultsTopic)
 
 	for {
 		msg, err := r.FetchMessage(ctx)
@@ -81,62 +90,7 @@ func StartAttemptKafkaWorker(ctx context.Context, rdb *redis.Client) error {
 			myredis.SetContainerStatus(ctx, rdb, c, "busy")
 		}
 
-		go Executor(ctx, rdb, a, containerTests[0], containerSites)
-	}
-}
-
-func StartQueueRedisWorker(ctx context.Context, rdb *redis.Client) {
-
-	for _, stack := range settings.Stacks {
-		go func(stack string) {
-			key := fmt.Sprintf("queue:%s", stack)
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					// ждём элемент из очереди
-					data, err := rdb.BLPop(ctx, 1*time.Second, key).Result()
-					if err != nil {
-						continue
-					}
-					if len(data) < 2 {
-						continue
-					}
-
-					var a classes.Attempt
-					if err := json.Unmarshal([]byte(data[1]), &a); err != nil {
-						fmt.Printf("Ошибка разбора attempt из очереди: %v\n", err)
-						continue
-					}
-
-					// Поиск свободного тестового контейнера
-					containerTests, err := WaitForFreeContainer(ctx, rdb, settings.TestContainers, stack, 1)
-					if err != nil {
-						fmt.Printf("Не удалось получить свободный контейнер: %v\n", err)
-						_ = rdb.LPush(ctx, key, data[1]).Err()
-						time.Sleep(1 * time.Second)
-						continue
-					}
-
-					// Поиск свободного сайтового контейнера
-					containerSites, err := WaitForFreeContainer(ctx, rdb, settings.SiteContainers, "", a.Threads)
-					if err != nil {
-						fmt.Printf("Не удалось получить свободный сайт-контейнер: %v\n", err)
-						_ = rdb.LPush(ctx, key, data[1]).Err()
-						time.Sleep(1 * time.Second)
-						continue
-					}
-
-					myredis.SetContainerStatus(ctx, rdb, containerTests[0], "busy")
-
-					for _, c := range containerSites {
-						myredis.SetContainerStatus(ctx, rdb, c, "busy")
-					}
-					go Executor(ctx, rdb, a, containerTests[0], containerSites)
-				}
-			}
-		}(stack)
+		go Executor(ctx, rdb, w, a, containerTests[0], containerSites)
 	}
 }
 

@@ -5,7 +5,8 @@ import (
 	"MainApp/commands"
 	"MainApp/conteinermanager"
 	myerrors "MainApp/errors"
-	myredis "MainApp/messageBrokers/redis"
+	mykafka "MainApp/messagebrokers/kafka"
+	myredis "MainApp/messagebrokers/redis"
 	"MainApp/selenium"
 	"MainApp/settings"
 	"MainApp/utilizes"
@@ -17,9 +18,10 @@ import (
 	"sync"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/segmentio/kafka-go"
 )
 
-func Executor(parentCtx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName string, containersSiteName []string) {
+func Executor(parentCtx context.Context, redisClient *redis.Client, kafkaWriter *kafka.Writer, attempt classes.Attempt, containerTestName string, containersSiteName []string) {
 	fmt.Printf("Начинаем выполнение attempt: %v\n", attempt)
 
 	ctx, cancel := context.WithTimeout(parentCtx, utilizes.ToDurations(attempt.Timeouts.Execution))
@@ -41,7 +43,7 @@ func Executor(parentCtx context.Context, redisClient *redis.Client, attempt clas
 		fmt.Println("Результат проверки:")
 		fmt.Println(string(b))
 
-		Ending(redisClient, containerTestName, containersSiteName, checkerResult, attempt)
+		Ending(redisClient, kafkaWriter, containerTestName, containersSiteName, checkerResult, attempt)
 	}()
 
 	checkerResult = ExecutorMain(ctx, attempt, containerTestName, containersSiteName)
@@ -370,10 +372,17 @@ func ClearAllContainers(ctx context.Context, containerTestName string, container
 	}
 }
 
-func Ending(redisClient *redis.Client, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker, attempt classes.Attempt) {
+func Ending(redisClient *redis.Client, kafkaWriter *kafka.Writer, containerTestName string, containerSiteName []string, results classes.AllTestsInChecker, attempt classes.Attempt) {
 	ctx := context.Background()
 
-	// Отправка результата проверки (пока просто сохранение в файл)
+	// Отправка результата проверки
+
+	// Kafka
+	if err := mykafka.PublishAttemptResult(ctx, kafkaWriter, results, attempt.Id); err != nil {
+		fmt.Printf("Ошибка публикации результата attempt %s: %v\n", attempt.Id, err)
+	}
+
+	// Файлы
 	b, _ := json.MarshalIndent(results, "", "  ")
 	if err := os.WriteFile(settings.FolderLog+attempt.Id.String()+"/result.json", b, 0644); err != nil {
 		fmt.Printf("Ошибка создания файла результата: %v\n", err)

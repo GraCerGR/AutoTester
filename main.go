@@ -3,8 +3,7 @@ package main
 import (
 	"MainApp/checker"
 	"MainApp/classes"
-	redis "MainApp/messageBrokers/redis"
-	"MainApp/settings"
+	redis "MainApp/messagebrokers/redis"
 	"context"
 	"fmt"
 	"os"
@@ -24,7 +23,7 @@ func main() {
 
 	//Прослушивание очереди kafka
 	go func() {
-		err := StartAttemptKafkaListener(ctx, settings.KafkaBrokers, settings.KafkaTopic, settings.KafkaGroup,
+		err := StartAttemptKafkaListener(ctx,
 			func(ctx context.Context, a classes.Attempt) error {
 				return redis.EnqueueAttempt(ctx, redisClient, a)
 			},
