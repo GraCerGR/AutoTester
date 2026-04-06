@@ -57,3 +57,12 @@ func GenerateFolderName(id uuid.UUID, time time.Time) string {
 
 	return name
 }
+
+func ToDurations(mytime string) time.Duration {
+	execution, err := time.ParseDuration(mytime)
+	if err != nil {
+		fmt.Printf("Ошибка парсинга таймаута выполнения: %v\n", err)
+		return 0
+	}
+	return execution
+}

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"time"
+
+	"github.com/segmentio/kafka-go"
 )
 
 func StartCompose(ctx context.Context, composeDir string) error {
@@ -21,6 +23,16 @@ func StartCompose(ctx context.Context, composeDir string) error {
 	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d", "--scale", "selenium-node-chrome="+settings.SeleniumNodeChromeNumber); err != nil { //, "--scale", "selenium-node-chrome=5"
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
+
+	// Ждём Kafka
+	fmt.Println("Ожидание готовности Kafka")
+	if err := WaitForKafka(30*time.Second, settings.KafkaBrokers[0]); err != nil {
+		fmt.Println("Kafka не стал готова вовремя:")
+		_ = conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs", "kafka")
+		return fmt.Errorf("Kafka не готов: %w", err)
+	}
+
+	fmt.Println("Kafka готов")
 
 	fmt.Println("Ожидание готовности Selenium Hub")
 	if err := WaitForHub(settings.HubWaitTimeout); err != nil {
@@ -48,13 +60,11 @@ func StopCompose(ctx context.Context, composeDir string) error {
 	return nil
 }
 
-// WaitForHub опрашивает хаб селениума до таймаута.
 func WaitForHub(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		resp, err := http.Get(settings.HubStatusURL)
 		if err == nil && resp.StatusCode == 200 {
-			// успех
 			_ = resp.Body.Close()
 			return nil
 		}
@@ -64,4 +74,22 @@ func WaitForHub(timeout time.Duration) error {
 		time.Sleep(settings.HubWaitPollInterval)
 	}
 	return fmt.Errorf("timeout waiting for hub at %s", settings.HubStatusURL)
+}
+
+func WaitForKafka(timeout time.Duration, broker string) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		conn, err := kafka.Dial("tcp", broker)
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+
+		if conn != nil {
+			_ = conn.Close()
+		}
+		time.Sleep(settings.KafkaPollInterval)
+	}
+
+	return fmt.Errorf("kafka broker %s не стал готов за %s", broker, timeout)
 }

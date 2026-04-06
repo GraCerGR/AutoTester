@@ -1,4 +1,4 @@
-package redis
+package messageBrokers
 
 import (
 	"MainApp/classes"

@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func DownloadFromGit(ctx context.Context, repoURL string, branch *string, subDir, targetDir, token string) error {
+func DownloadFromGit(ctx context.Context, repoURL string, branch string, subDir, targetDir, token string) error {
 	mainBranch := "main"
 	if repoURL == "" {
 		return fmt.Errorf("RepoURL is required")
@@ -20,8 +20,8 @@ func DownloadFromGit(ctx context.Context, repoURL string, branch *string, subDir
 	if targetDir == "" {
 		return fmt.Errorf("TargetDir is required")
 	}
-	if branch != nil {
-		mainBranch = *branch
+	if branch != "" {
+		mainBranch = branch
 	}
 
 	zipURL, err := buildZipURL(repoURL, mainBranch)

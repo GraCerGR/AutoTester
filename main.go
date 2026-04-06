@@ -3,7 +3,7 @@ package main
 import (
 	"MainApp/checker"
 	"MainApp/classes"
-	"MainApp/redis"
+	redis "MainApp/messageBrokers/redis"
 	"MainApp/settings"
 	"context"
 	"fmt"
@@ -22,9 +22,9 @@ func main() {
 		return
 	}
 
-	//Прослушивание очереди (пока прослушивание БД)
+	//Прослушивание очереди kafka
 	go func() {
-		err := StartAttemptInsertListener(ctx, settings.PostgresLink,
+		err := StartAttemptKafkaListener(ctx, settings.KafkaBrokers, settings.KafkaTopic, settings.KafkaGroup,
 			func(ctx context.Context, a classes.Attempt) error {
 				return redis.EnqueueAttempt(ctx, redisClient, a)
 			},

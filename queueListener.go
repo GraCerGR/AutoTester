@@ -3,11 +3,55 @@ package main
 import (
 	"MainApp/classes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/segmentio/kafka-go"
 )
+
+
+func StartAttemptKafkaListener(ctx context.Context, brokers []string, topic string, groupID string, onNew func(ctx context.Context, a classes.Attempt) error,
+) error {
+	r := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:  brokers,
+		Topic:    topic,
+		GroupID:  groupID,
+		MinBytes: 1,
+		MaxBytes: 10e6,
+	})
+	defer r.Close()
+
+	log.Printf("Kafka consumer started: topic=%s group=%s", topic, groupID)
+
+	for {
+		msg, err := r.FetchMessage(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return fmt.Errorf("fetch message: %w", err)
+		}
+
+		var a classes.Attempt
+		if err := json.Unmarshal(msg.Value, &a); err != nil {
+			log.Printf("bad kafka message at offset=%d: %v", msg.Offset, err)
+			_ = r.CommitMessages(ctx, msg)
+			continue
+		}
+
+		if err := onNew(ctx, a); err != nil {
+			log.Printf("processing attempt %s failed: %v", a.Id, err)
+			continue
+		}
+
+		if err := r.CommitMessages(ctx, msg); err != nil {
+			return fmt.Errorf("commit message: %w", err)
+		}
+	}
+}
+
 
 func StartAttemptInsertListener(ctx context.Context, pgDSN string, onNew func(ctx context.Context, a classes.Attempt) error) error {
 	pool, err := pgxpool.New(ctx, pgDSN)

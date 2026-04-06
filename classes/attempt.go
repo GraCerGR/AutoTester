@@ -8,30 +8,30 @@ import (
 
 // Что должен слушать лисенер
 type Attempt struct {
-	Id                      uuid.UUID
-	CreatedAt               time.Time
-	SolutionGit             GitInfo
-	SiteGit                 GitInfo
-	VariableWithURL         string
-	ProgrammingLanguageName string
-	Timeouts                Timeouts
-	Threads                 int
-	ShutdownCondition       ShutdownCondition
+	Id                      uuid.UUID         `json:"id"`
+	CreatedAt               time.Time         `json:"created_at"`
+	SolutionGit             GitInfo           `json:"solution_git"`
+	SiteGit                 GitInfo           `json:"site_git"`
+	VariableWithURL         string            `json:"variable_with_url"`
+	ProgrammingLanguageName string            `json:"programming_language_name"`
+	Timeouts                Timeouts          `json:"timeouts"`
+	Threads                 int               `json:"threads"`
+	ShutdownCondition       ShutdownCondition `json:"shutdown_condition"`
 }
 
 type GitInfo struct {
-	URL    string
-	Branch *string
+	URL    string `json:"url"`
+	Branch string `json:"branch"`
 }
 
 type Timeouts struct {
-	Execution time.Duration
-	Test      time.Duration
+	Execution string `json:"execution"`
+	Test      string `json:"test"`
 }
 
 type Threads struct {
-	Number int
-	Reuse  bool
+	Number int  `json:"number"`
+	Reuse  bool `json:"reuse"`
 }
 
 type ShutdownCondition string

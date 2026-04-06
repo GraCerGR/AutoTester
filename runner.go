@@ -3,7 +3,7 @@ package main
 import (
 	"MainApp/conteinermanager"
 	dockercompose "MainApp/dockercompose"
-	myredis "MainApp/redis"
+	myredis "MainApp/messageBrokers/redis"
 	"MainApp/settings"
 	"context"
 	"fmt"
@@ -15,7 +15,8 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	// ---- Runner ----
 	ctx := context.Background()
-	//Запуск компоуза с гридом и реддисом
+	
+	//Запуск компоуза с гридом, реддисом и кафкой
 	if err := dockercompose.StartCompose(ctx, "./dockercompose"); err != nil {
 		fmt.Printf("Ошибка запуска Selenium Grid: %v\n", err)
 		return nil, nil, err
@@ -45,7 +46,7 @@ func Runner() (context.Context, *redis.Client, error) {
 	}
 
 	//Запуск worker очереди
-	StartQueueWorker(ctx, redisClient)
+	StartAttemptKafkaWorker(ctx, redisClient)
 
 	return ctx, redisClient, nil
 }

@@ -5,7 +5,7 @@ import (
 	"MainApp/commands"
 	"MainApp/conteinermanager"
 	myerrors "MainApp/errors"
-	myredis "MainApp/redis"
+	myredis "MainApp/messageBrokers/redis"
 	"MainApp/selenium"
 	"MainApp/settings"
 	"MainApp/utilizes"
@@ -20,8 +20,9 @@ import (
 )
 
 func Executor(parentCtx context.Context, redisClient *redis.Client, attempt classes.Attempt, containerTestName string, containersSiteName []string) {
+	fmt.Printf("Начинаем выполнение attempt: %v\n", attempt)
 
-	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Execution)
+	ctx, cancel := context.WithTimeout(parentCtx, utilizes.ToDurations(attempt.Timeouts.Execution))
 	defer cancel()
 
 	var checkerResult classes.AllTestsInChecker
@@ -285,7 +286,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 	var launchResult classes.CheckerTest
 	launchResult.Id = index
 
-	ctx, cancel := context.WithTimeout(parentCtx, attempt.Timeouts.Test)
+	ctx, cancel := context.WithTimeout(parentCtx, utilizes.ToDurations(attempt.Timeouts.Test))
 	defer cancel()
 
 	logFilePath := fmt.Sprintf("%s/%d.log", settings.FolderLog+attempt.Id.String(), index)

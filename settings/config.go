@@ -12,6 +12,15 @@ const (
 	DialTimeout     = 30 * time.Second
 )
 
+// kafka
+var KafkaBrokers = []string{"localhost:9092"}
+
+const (
+	KafkaTopic = "attempts"
+	KafkaGroup = "attempts-router"
+	KafkaPollInterval      = 1 * time.Second
+)
+
 //Timeouts
 const ExecutionTimeout = 15 * time.Minute
 const TestTimeout = 10 * time.Minute
