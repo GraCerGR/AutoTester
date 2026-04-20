@@ -1,7 +1,7 @@
 package main
 
 import (
-	"MainApp/conteinermanager"
+	"MainApp/containermanager"
 	dockercompose "MainApp/dockercompose"
 	messagebrokers "MainApp/messagebrokers/kafka"
 	myredis "MainApp/messagebrokers/redis"
@@ -26,7 +26,7 @@ func Runner() (context.Context, *redis.Client, error) {
 
 	//Сборка образов для тестовых контейнеров
 	for _, stack := range settings.Stacks {
-		if err := conteinermanager.DockerBuild(ctx, settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
+		if err := containermanager.DockerBuild(ctx, settings.ChooseImageTag(stack), settings.ChooseImageFilePath(stack)+settings.ChooseImageFile(stack), "."); err != nil {
 			fmt.Printf("Ошибка создания образов: %v\n", err)
 			return nil, nil, err
 		}

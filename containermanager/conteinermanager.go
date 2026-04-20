@@ -1,4 +1,4 @@
-package conteinermanager
+package containermanager
 
 import (
 	"bufio"
@@ -217,12 +217,10 @@ func RemoveContainer(ctx context.Context, containerName string) error {
 }
 
 func SendProjectToImage(ctx context.Context, contextDir, containerName string, site bool) error {
-	// Валидация базовых параметров
 	if contextDir == "" {
 		return fmt.Errorf("contextDir must be provided")
 	}
 
-	// Приводим contextDir к абсолютному пути (чтобы docker cp корректно работал)
 	absContextDir, err := filepath.Abs(contextDir)
 	if err != nil {
 		return fmt.Errorf("не удалось получить абсолютный путь для contextDir: %w", err)
@@ -238,7 +236,6 @@ func SendProjectToImage(ctx context.Context, contextDir, containerName string, s
 		return fmt.Errorf("контейнер '%s' не запущен: невозможно скопировать файлы проекта. Поднимите Selenium Grid и контейнер перед выполнением тестов", containerName)
 	}
 
-	// Копируем содержимое contextDir в /app контейнера test-node
 	hostSrc := filepath.Clean(absContextDir) + string(os.PathSeparator) + "."
 	dest := fmt.Sprintf("%s:/app/", containerName)
 
@@ -288,7 +285,6 @@ func RemoveProjectFromContainer(ctx context.Context, containerName string, site 
 		return fmt.Errorf("Контейнер %s не запущен: %w", containerName, err)
 	}
 
-	// Удаляем содержимое каталога от имени пользователя seluser
 	var rmCmd string
 	if site {
 		rmCmd = fmt.Sprintf("find %s -mindepth 1 ! -name '%s' -exec rm -rf {} +", targetDir, preserveFile)

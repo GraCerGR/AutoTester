@@ -1,7 +1,7 @@
 package dockercompose
 
 import (
-	"MainApp/conteinermanager"
+	"MainApp/containermanager"
 	"MainApp/settings"
 	"context"
 	"fmt"
@@ -20,7 +20,7 @@ func StartCompose(ctx context.Context, composeDir string) error {
 
 	fmt.Println("Запуск контейнеров docker compose")
 
-	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d", "--scale", "selenium-node-chrome="+settings.SeleniumNodeChromeNumber); err != nil { //, "--scale", "selenium-node-chrome=5"
+	if err := containermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "up", "-d", "--scale", "selenium-node-chrome="+settings.SeleniumNodeChromeNumber); err != nil { //, "--scale", "selenium-node-chrome=5"
 		return fmt.Errorf("docker compose up failed: %w", err)
 	}
 
@@ -28,7 +28,7 @@ func StartCompose(ctx context.Context, composeDir string) error {
 	fmt.Println("Ожидание готовности Kafka")
 	if err := WaitForKafka(30*time.Second, settings.KafkaBrokers[0]); err != nil {
 		fmt.Println("Kafka не стал готова вовремя:")
-		_ = conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs", "kafka")
+		_ = containermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs", "kafka")
 		return fmt.Errorf("Kafka не готов: %w", err)
 	}
 
@@ -37,7 +37,7 @@ func StartCompose(ctx context.Context, composeDir string) error {
 	fmt.Println("Ожидание готовности Selenium Hub")
 	if err := WaitForHub(settings.HubWaitTimeout); err != nil {
 		fmt.Println("Hub не стал готов вовремя:")
-		_ = conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
+		_ = containermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "logs")
 		return fmt.Errorf("Hub не готов: %w", err)
 	}
 
@@ -52,7 +52,7 @@ func StopCompose(ctx context.Context, composeDir string) error {
 	}
 
 	fmt.Println("=== Остановка Selenium Grid ===")
-	if err := conteinermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
+	if err := containermanager.RunCmd(ctx, "docker", "compose", "-f", filepath.Join(absDir, "docker-compose.yml"), "down", "-v"); err != nil {
 		return fmt.Errorf("docker compose down failed: %w", err)
 	}
 

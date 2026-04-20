@@ -23,10 +23,6 @@ const (
 	KafkaPollInterval      = 1 * time.Second
 )
 
-//Timeouts
-const ExecutionTimeout = 15 * time.Minute
-const TestTimeout = 10 * time.Minute
-
 // Папки для хранения загружаемых файлов и результатов
 const (
 	FolderSite     = "Results/Sites/Gits/"

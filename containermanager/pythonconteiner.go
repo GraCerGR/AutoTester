@@ -1,4 +1,4 @@
-package conteinermanager
+package containermanager
 
 import (
 	"context"

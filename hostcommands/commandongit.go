@@ -1,4 +1,4 @@
-package commands
+package hostcommands
 
 import (
 	"archive/zip"

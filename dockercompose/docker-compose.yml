@@ -2,38 +2,6 @@ networks:
   tests-net:
     name: tests-net
 
-x-worker-defaults: &worker_defaults
-  image: mysite:latest
-  build:
-    context: ..
-    dockerfile: dockerfiles/site/Dockerfile.site
-  depends_on:
-    - selenium-hub
-  restart: unless-stopped
-  networks:
-    - tests-net
-
-x-testpython-defaults: &testpython_defaults
-  image: testimagepython:latest
-  build:
-    context: ..
-    dockerfile: dockerfiles/python/DockerfilePython.base
-  mem_limit: 1g
-  cpus: 1.0
-  shm_size: 1g
-  pids_limit: 300
-
-x-testjava-defaults: &testjava_defaults
-  image: testimagejava:latest
-  build:
-    context: ..
-    dockerfile: dockerfiles/java/DockerfileJava.base
-  mem_limit: 1g
-  cpus: 1.0
-  shm_size: 1g
-  pids_limit: 300
-
-
 services:
   redis:
     image: redis:7
@@ -79,7 +47,6 @@ services:
     networks:
       - tests-net
     image: selenium/node-chrome:4.11.0
-    #container_name: selenium-node-chrome
     shm_size: 3gb
     depends_on:
       - selenium-hub
@@ -88,8 +55,6 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-    #  - SE_NODE_MAX_SESSIONS=5
-    #  - SE_NODE_OVERRIDE_MAX_SESSIONS=true
 
 volumes:
   kafka_data:

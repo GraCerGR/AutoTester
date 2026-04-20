@@ -2,9 +2,9 @@ package main
 
 import (
 	"MainApp/classes"
-	"MainApp/commands"
-	"MainApp/conteinermanager"
+	"MainApp/containermanager"
 	myerrors "MainApp/errors"
+	"MainApp/hostcommands"
 	mykafka "MainApp/messagebrokers/kafka"
 	myredis "MainApp/messagebrokers/redis"
 	"MainApp/selenium"
@@ -22,8 +22,6 @@ import (
 )
 
 func Executor(parentCtx context.Context, redisClient *redis.Client, kafkaWriter *kafka.Writer, attempt classes.Attempt, containerTestName string, containersSiteName []string) {
-	fmt.Printf("Начинаем выполнение attempt: %v\n", attempt)
-
 	ctx, cancel := context.WithTimeout(parentCtx, utilizes.ToDurations(attempt.Timeouts.Execution))
 	defer cancel()
 
@@ -65,65 +63,65 @@ func ExecutorMain(ctx context.Context, attempt classes.Attempt, containerTestNam
 	}
 
 	//Загрузка решения из гита
-	if err := commands.DownloadFromGit(ctx, attempt.SolutionGit.URL, attempt.SolutionGit.Branch, "", settings.FolderSolution+containerTestName, ""); err != nil {
+	if err := hostcommands.DownloadFromGit(ctx, attempt.SolutionGit.URL, attempt.SolutionGit.Branch, "", settings.FolderSolution+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки решения с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
 	//Запускаем нужный контейнер для тестов
-	if err := conteinermanager.RunTestContainer(ctx, containerTestName, settings.ChooseImageTag(attempt.ProgrammingLanguageName)); err != nil {
+	if err := containermanager.RunTestContainer(ctx, containerTestName, settings.ChooseImageTag(attempt.ProgrammingLanguageName)); err != nil {
 		comment := fmt.Sprintf("Не удалось создать test container: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
 	//Передаём файлы теста в тестовый контейнер
-	if err := conteinermanager.SendProjectToImage(ctx, settings.FolderSolution+containerTestName, containerTestName, false); err != nil {
+	if err := containermanager.SendProjectToImage(ctx, settings.FolderSolution+containerTestName, containerTestName, false); err != nil {
 		comment := fmt.Sprintf("Ошибка передачи проекта в контейнер: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
 	switch attempt.ProgrammingLanguageName {
 	case "python":
-		if err := conteinermanager.AddTestURLImportToPythonFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+		if err := containermanager.AddTestURLImportToPythonFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
 			comment := fmt.Sprintf("Ошибка добавления import "+attempt.VariableWithURL+": %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 
-		if err := conteinermanager.CommentPythonVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+		if err := containermanager.CommentPythonVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
 			comment := fmt.Sprintf("Ошибка комментирования переменной "+attempt.VariableWithURL+": %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 
-		if err := conteinermanager.SendSitePythonCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "sitecustomize.py", containerTestName); err != nil {
+		if err := containermanager.SendSitePythonCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "sitecustomize.py", containerTestName); err != nil {
 			comment := fmt.Sprintf("Ошибка отправки sitecustomize.py: %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 	case "java":
-		if err := conteinermanager.AddTestURLImportToJavaFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+		if err := containermanager.AddTestURLImportToJavaFiles(ctx, containerTestName, attempt.VariableWithURL); err != nil {
 			comment := fmt.Sprintf("Ошибка добавления import"+attempt.VariableWithURL+": %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 
-		if err := conteinermanager.CommentJavaVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
+		if err := containermanager.CommentJavaVariableInContainer(ctx, containerTestName, attempt.VariableWithURL); err != nil {
 			comment := fmt.Sprintf("Ошибка комментирования переменной %s: %v\n", attempt.VariableWithURL, err)
 			return myerrors.FailResult(comment)
 		}
 
-		if err := conteinermanager.SendSiteJavaCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "ChromeDriver.java", containerTestName); err != nil {
+		if err := containermanager.SendSiteJavaCustomize(ctx, settings.ChooseImageFilePath(attempt.ProgrammingLanguageName), "ChromeDriver.java", containerTestName); err != nil {
 			comment := fmt.Sprintf("Ошибка отправки ChromeDriver.java: %v\n", err)
 			return myerrors.FailResult(comment)
 		}
 	}
 
 	//Загрузка сайта из гита
-	if err := commands.DownloadFromGit(ctx, attempt.SiteGit.URL, attempt.SiteGit.Branch, "", settings.FolderSite+containerTestName, ""); err != nil {
+	if err := hostcommands.DownloadFromGit(ctx, attempt.SiteGit.URL, attempt.SiteGit.Branch, "", settings.FolderSite+containerTestName, ""); err != nil {
 		comment := fmt.Sprintf("Ошибка загрузки сайта с гита: %v\n", err)
 		return myerrors.FailResult(comment)
 	}
 
 	//Запуск контейнеров с сайтом
 	for i := range containersSiteName {
-		if err := conteinermanager.RunSiteContainer(ctx, containersSiteName[i], settings.ChooseImageTag("site")); err != nil {
+		if err := containermanager.RunSiteContainer(ctx, containersSiteName[i], settings.ChooseImageTag("site")); err != nil {
 			comment := fmt.Sprintf("Не удалось создать site container: %v\n", err)
 			return myerrors.FailResult(comment)
 		}
@@ -187,7 +185,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 				checkerOneResult.Id = index
 				checkerAllResults.AllTests[i].Id = checkerOneResult.Id
 
-				if err := conteinermanager.SendProjectToImage(ctx, path, containersSite[threadIndex], true); err != nil {
+				if err := containermanager.SendProjectToImage(ctx, path, containersSite[threadIndex], true); err != nil {
 					msg := fmt.Sprintf("Ошибка при отправке %s: %v\n", path, err)
 
 					checkerOneResult.Comment = msg
@@ -203,7 +201,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 					return
 				}
 
-				if launchResult, err := LaunchTestsInConteiner(ctx, containerTest, containersSite[threadIndex], resultsFolder, attempt, index); err != nil {
+				if launchResult, err := launchTestsInСontainer(ctx, containerTest, containersSite[threadIndex], resultsFolder, attempt, index); err != nil {
 					fmt.Printf("Ошибка запуска тестов в контейнере: %v\n", err)
 
 					mu.Lock()
@@ -213,7 +211,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 					stop = true
 					mu.Unlock()
 
-					_ = conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
+					_ = containermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
 					continue
 				}
 
@@ -230,7 +228,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 					stop = true
 					mu.Unlock()
 
-					_ = conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
+					_ = containermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true)
 					continue
 
 				} else {
@@ -240,7 +238,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 					checkerOneResult.Actual = checkerTest.Actual
 				}
 
-				if err := conteinermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true); err != nil {
+				if err := containermanager.RemoveProjectFromContainer(ctx, containersSite[threadIndex], true); err != nil {
 					msg := fmt.Sprintf("Ошибка при очистке контейнера: %v\n", err)
 
 					checkerOneResult.Comment = msg
@@ -284,7 +282,7 @@ func ExecutionSolutionOnSites(ctx context.Context, siteFolder, resultsFolder, co
 	return checkerAllResults, nil
 }
 
-func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt, index int) (classes.CheckerTest, error) {
+func launchTestsInСontainer(parentCtx context.Context, containerTest, containerSite, resultsFolder string, attempt classes.Attempt, index int) (classes.CheckerTest, error) {
 	var launchResult classes.CheckerTest
 	launchResult.Id = index
 
@@ -296,7 +294,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 	switch attempt.ProgrammingLanguageName {
 	case "python":
 
-		_, err := conteinermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
+		_, err := containermanager.RunPythonTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -310,7 +308,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 			return launchResult, err
 		}
 
-		if err := conteinermanager.CopyResultsFromPythonContainer(ctx, containerTest, resultsFolder, index); err != nil {
+		if err := containermanager.CopyResultsFromPythonContainer(ctx, containerTest, resultsFolder, index); err != nil {
 			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLoadTestResults
 			launchResult.Comment = msg
@@ -318,7 +316,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 		}
 	case "java":
 
-		_, err := conteinermanager.RunJavaTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
+		_, err := containermanager.RunJavaTestsContainer(ctx, containerTest, "http://"+containerSite+":80", index, logFilePath)
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) {
 				launchResult.TestingVerdict = classes.TestVerdictEnum.Timeout
@@ -332,7 +330,7 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 			return launchResult, err
 		}
 
-		if err := conteinermanager.CopyResultsFromJavaContainer(ctx, containerTest, resultsFolder, index); err != nil {
+		if err := containermanager.CopyResultsFromJavaContainer(ctx, containerTest, resultsFolder, index); err != nil {
 			msg := fmt.Sprintf("Ошибка загрузки результатов с контейнера: %v\n", err)
 			launchResult.TestingVerdict = classes.TestVerdictEnum.FailLoadTestResults
 			launchResult.Comment = msg
@@ -347,28 +345,28 @@ func LaunchTestsInConteiner(parentCtx context.Context, containerTest, containerS
 func ClearAllContainers(ctx context.Context, containerTestName string, containerSiteName []string) {
 
 	//Удаляем файлы теста в контейнере
-	if err := conteinermanager.RemoveProjectFromContainer(ctx, containerTestName, false); err != nil {
+	if err := containermanager.RemoveProjectFromContainer(ctx, containerTestName, false); err != nil {
 		fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 	}
 
 	//Удаляем файлы сайта в контейнере
 	for index := range containerSiteName {
-		if err := conteinermanager.RemoveProjectFromContainer(ctx, containerSiteName[index], true); err != nil {
+		if err := containermanager.RemoveProjectFromContainer(ctx, containerSiteName[index], true); err != nil {
 			fmt.Printf("Ошибка при очистке контейнера: %v\n", err)
 		}
 	}
 
 	//Удаляем файлы сайта и решения с хоста
-	if err := commands.ClearHostFolder(settings.FolderSite + containerTestName); err != nil {
+	if err := hostcommands.ClearHostFolder(settings.FolderSite + containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления файлов сайта: %v\n", err)
 	}
-	if err := commands.ClearHostFolder(settings.FolderSolution + containerTestName); err != nil {
+	if err := hostcommands.ClearHostFolder(settings.FolderSolution + containerTestName); err != nil {
 		fmt.Printf("Ошибка удаления файлов решения: %v\n", err)
 	}
 
-	conteinermanager.RemoveContainer(ctx, containerTestName)
+	containermanager.RemoveContainer(ctx, containerTestName)
 	for index := range containerSiteName {
-		conteinermanager.RemoveContainer(ctx, containerSiteName[index])
+		containermanager.RemoveContainer(ctx, containerSiteName[index])
 	}
 }
 
@@ -404,13 +402,13 @@ func Ending(redisClient *redis.Client, kafkaWriter *kafka.Writer, containerTestN
 }
 
 func createFolders(attempt classes.Attempt) error {
-	if err := commands.CreateFolder(settings.FolderLog + attempt.Id.String()); err != nil {
+	if err := hostcommands.CreateFolder(settings.FolderLog + attempt.Id.String()); err != nil {
 		return err
 	}
-	if err := commands.CreateFolder(settings.FolderSolution); err != nil {
+	if err := hostcommands.CreateFolder(settings.FolderSolution); err != nil {
 		return err
 	}
-	if err := commands.CreateFolder(settings.FolderSite); err != nil {
+	if err := hostcommands.CreateFolder(settings.FolderSite); err != nil {
 		return err
 	}
 	return nil

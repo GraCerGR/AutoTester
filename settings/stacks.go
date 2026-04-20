@@ -1,6 +1,6 @@
 package settings
 
-var Stacks = []string{"python", "java"}
+var Stacks = []string{"python", "java", "site"}
 var StackBuildsNames = map[string]string{
 	"python": "testimagepython",
 	"java":   "testimagejava",

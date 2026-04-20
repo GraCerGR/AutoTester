@@ -8,7 +8,6 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 
 public class ChromeDriver extends RemoteWebDriver {
 
-    // === Аналог sitecustomize.py ===
     public static final String TEST_URL =
         getEnvOrDefault("TEST_URL", "http://localhost:8080");
 
