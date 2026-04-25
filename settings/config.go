@@ -30,9 +30,6 @@ const (
 	FolderLog      = "Results/Logs/"
 )
 
-// Database
-const PostgresLink = "postgres://postgres:postgres@localhost:5432/VKR?sslmode=disable"
-
 // Selenium Grid
 const (
 	HubStatusURL             = "http://localhost:4444/status"

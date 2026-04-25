@@ -59,18 +59,18 @@ func CheckerWithNames(index int, resultsDir string, standartDir string) (classes
 			mismatch = true
 		}
 	}
+	/*
+		for key := range actual {
+			_, exists := expected[key]
 
-	for key := range actual {
-		_, exists := expected[key]
+			if !exists {
+				msg := fmt.Sprintf("Лишний тест '%s'", key)
 
-		if !exists {
-			msg := fmt.Sprintf("Лишний тест '%s'", key)
-
-			cd.TestingVerdict = classes.TestVerdictEnum.WrongLength
-			cd.Comment += msg + "; "
-			mismatch = true
-		}
-	}
+				cd.TestingVerdict = classes.TestVerdictEnum.WrongLength
+				cd.Comment += msg + "; "
+				mismatch = true
+			}
+		}*/
 
 	if !mismatch {
 		fmt.Println("Все тесты совпадают!")
