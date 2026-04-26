@@ -10,12 +10,14 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    profiles: ["redis"]
 
-  kafka:
+  kafka:  
     image: apache/kafka:latest
     container_name: kafka
     ports:
       - "9092:9092"
+    profiles: ["kafka"]
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
@@ -35,6 +37,7 @@ services:
       - tests-net
     image: selenium/hub:4.11.0
     container_name: selenium-hub
+    profiles: ["selenium"]
     ports:
       - "4442:4442"
       - "4443:4443"
@@ -47,6 +50,7 @@ services:
     networks:
       - tests-net
     image: selenium/node-chrome:4.11.0
+    profiles: ["selenium"]
     shm_size: 3gb
     depends_on:
       - selenium-hub

@@ -2,68 +2,84 @@ package main
 
 import (
 	"MainApp/checker"
-	"MainApp/classes"
-	redis "MainApp/messagebrokers/redis"
-	"context"
 	"fmt"
 	"os"
 )
 
 func main() {
 
-	if cmdCommands() == true {
+	stop, profiles := cmdCommands()
+	if stop {
 		return
 	}
 
-	ctx, redisClient, err := Runner()
+	_, _, err := Runner(profiles) // ctx, redisClient,
 	if err != nil {
 		fmt.Printf("При запуске runner'а произошла ошибка: %s", err)
 		return
 	}
-
-	//Прослушивание очереди kafka
-	go func() {
-		err := StartAttemptKafkaListener(ctx,
-			func(ctx context.Context, a classes.Attempt) error {
-				return redis.EnqueueAttempt(ctx, redisClient, a)
-			},
-		)
-
-		if err != nil && ctx.Err() == nil {
-			fmt.Printf("Прослушивание закончено с ошибкой: %v", err)
-		}
-	}()
-
-	<-ctx.Done()
 }
 
-func cmdCommands() bool {
+func cmdCommands() (bool, []string) {
+	if len(os.Args) > 1 && os.Args[1] == "up" {
+
+		noRedis := false
+		noKafka := false
+		noSelenium := false
+
+		for _, arg := range os.Args[2:] {
+			switch arg {
+			case "--no-redis":
+				noRedis = true
+			case "--no-kafka":
+				noKafka = true
+			case "--no-selenium":
+				noSelenium = true
+			}
+		}
+
+		var profiles []string
+
+		if !noRedis {
+			profiles = append(profiles, "redis")
+		}
+		if !noKafka {
+			profiles = append(profiles, "kafka")
+		}
+		if !noSelenium {
+			profiles = append(profiles, "selenium")
+		}
+
+		return false, profiles
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "parsexml" {
 
 		if len(os.Args) < 3 {
-			fmt.Println("Ошибка. Для прасинга выполните команду: go run . parsexml <папка_с_xml> <index_bool>")
-			return true
+			fmt.Println("Ошибка. Для прасинга: go run . parsexml <папка> <index_bool>")
+			return true, nil
 		}
+
 		if len(os.Args) == 3 {
 			if err := checker.ParseFolder(os.Args[2]); err != nil {
-				fmt.Println("Ошибка при обработке папки:", err)
+				fmt.Println("Ошибка:", err)
 				os.Exit(1)
 			}
-		} else if len(os.Args) == 4 {
+		} else {
 			if err := checker.ParseFolder(os.Args[2], os.Args[3]); err != nil {
-				fmt.Println("Ошибка при обработке папки:", err)
+				fmt.Println("Ошибка:", err)
 				os.Exit(1)
 			}
 		}
-		fmt.Println(len(os.Args))
-		return true
 
-	} else if len(os.Args) > 1 {
-
-		fmt.Println("Неверная команда. Доступные команды:\nparsexml")
-		return true
-
-	} else {
-		return false
+		return true, nil
 	}
+
+	if len(os.Args) > 1 {
+		fmt.Println("Доступные команды:\nup\nparsexml")
+		return true, nil
+	}
+
+	return false, []string{"redis", "kafka", "selenium"}
+
 }
