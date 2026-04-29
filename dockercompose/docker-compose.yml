@@ -35,7 +35,7 @@ services:
   selenium-hub:
     networks:
       - tests-net
-    image: selenium/hub:4.11.0
+    image: selenium/hub:latest
     container_name: selenium-hub
     profiles: ["selenium"]
     ports:
@@ -49,7 +49,7 @@ services:
   selenium-node-chrome:
     networks:
       - tests-net
-    image: selenium/node-chrome:4.11.0
+    image: selenium/node-chrome:latest
     profiles: ["selenium"]
     shm_size: 3gb
     depends_on:
@@ -59,6 +59,8 @@ services:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
 volumes:
   kafka_data:

@@ -287,7 +287,7 @@ func RemoveProjectFromContainer(ctx context.Context, containerName string, site 
 
 	var rmCmd string
 	if site {
-		rmCmd = fmt.Sprintf("find %s -mindepth 1 ! -name '%s' -exec rm -rf {} +", targetDir, preserveFile)
+		rmCmd = fmt.Sprintf(`find %s -mindepth 1 -delete 2>/dev/null || true rm -rf %s/.[!.]* %s/..?* 2>/dev/null || true`, targetDir, targetDir, targetDir)
 	} else {
 		rmCmd = fmt.Sprintf("rm -rf %s/* %s/.[!.]* %s/..?*", targetDir, targetDir, targetDir)
 	}
@@ -300,6 +300,17 @@ func RemoveProjectFromContainer(ctx context.Context, containerName string, site 
 		"-c",
 		rmCmd,
 	}
+
+	cacheCmd := []string{
+		"exec",
+		"-u", "root",
+		containerName,
+		"sh",
+		"-c",
+		"rm -rf /var/cache/nginx/* 2>/dev/null || true",
+	}
+
+	_ = RunCmd(ctx, "docker", cacheCmd...)
 
 	if err := RunCmd(ctx, "docker", args...); err != nil {
 		return fmt.Errorf("Ошибка удаления проекта в контейнере %s: %w", containerName, err)
